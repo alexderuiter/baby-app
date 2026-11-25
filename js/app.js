@@ -5,8 +5,8 @@ const $ = sel => document.querySelector(sel);
 const NAME_KEY = 'babylog.name';
 const BOTTLE_KEY = 'babylog.lastBottle';
 const LABELS = {
-  feed: { left: 'Breast · left', right: 'Breast · right', bottle: 'Bottle' },
-  diaper: { wet: 'Wet diaper', dirty: 'Dirty diaper', both: 'Wet + dirty diaper' },
+  feed: { left: 'Borst · links', right: 'Borst · rechts', bottle: 'Fles' },
+  diaper: { wet: 'Natte luier', dirty: 'Poepluier', both: 'Natte luier + poep' },
 };
 
 let store;
@@ -14,22 +14,22 @@ let entries = [];
 let undoTimer;
 
 // ---------- formatting ----------
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+const timeFmt = new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' });
+const dayFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function duration(ms) {
   const min = Math.max(0, Math.floor(ms / 60000));
-  if (min < 1) return 'just now';
+  if (min < 1) return 'zojuist';
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
-  if (h < 24) return m ? `${h}h ${m}m` : `${h}h`;
+  if (h < 24) return m ? `${h}u ${m}m` : `${h}u`;
   const d = Math.floor(h / 24);
-  return `${d}d ${h % 24}h`;
+  return `${d}d ${h % 24}u`;
 }
 const ago = iso => {
   const d = duration(Date.now() - new Date(iso));
-  return d === 'just now' ? d : `${d} ago`;
+  return d === 'zojuist' ? d : `${d} geleden`;
 };
 
 function describe(e) {
@@ -42,9 +42,10 @@ function dayLabel(date) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(date); d.setHours(0, 0, 0, 0);
   const diff = Math.round((today - d) / 86400000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  return dayFmt.format(date);
+  if (diff === 0) return 'Vandaag';
+  if (diff === 1) return 'Gisteren';
+  const s = dayFmt.format(date);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // <input type="datetime-local"> wants local time without a zone.
@@ -64,17 +65,17 @@ function render() {
 
   $('#last-feed-ago').textContent = lastFeed ? ago(lastFeed.occurred_at) : '–';
   $('#last-feed-detail').textContent = lastFeed
-    ? `${describe(lastFeed)} at ${timeFmt.format(new Date(lastFeed.occurred_at))}`
-    : 'Nothing logged yet';
+    ? `${describe(lastFeed)} om ${timeFmt.format(new Date(lastFeed.occurred_at))}`
+    : 'Nog niets gelogd';
   $('#last-diaper-ago').textContent = lastDiaper ? ago(lastDiaper.occurred_at) : '–';
   $('#last-diaper-detail').textContent = lastDiaper
-    ? `${describe(lastDiaper)} at ${timeFmt.format(new Date(lastDiaper.occurred_at))}`
-    : 'Nothing logged yet';
+    ? `${describe(lastDiaper)} om ${timeFmt.format(new Date(lastDiaper.occurred_at))}`
+    : 'Nog niets gelogd';
 
   // Suggest the other breast next time.
   const lastBreast = entries.find(e => e.type === 'feed' && (e.kind === 'left' || e.kind === 'right'));
-  $('#hint-left').textContent = lastBreast?.kind === 'right' ? 'next' : '';
-  $('#hint-right').textContent = lastBreast?.kind === 'left' ? 'next' : '';
+  $('#hint-left').textContent = lastBreast?.kind === 'right' ? 'volgende' : '';
+  $('#hint-right').textContent = lastBreast?.kind === 'left' ? 'volgende' : '';
 
   renderToday();
   renderTimeline();
@@ -89,10 +90,10 @@ function renderToday() {
   const wet = today.filter(e => e.type === 'diaper' && e.kind !== 'dirty').length;
   const dirty = today.filter(e => e.type === 'diaper' && e.kind !== 'wet').length;
   $('#today').innerHTML = `
-    <span class="label">Today so far</span>
-    <span><b>${feeds.length}</b> ${feeds.length === 1 ? 'feed' : 'feeds'}${ml ? ` (<b>${ml}</b> ml bottle)` : ''}</span>
-    <span><b>${wet}</b> wet</span>
-    <span><b>${dirty}</b> dirty</span>`;
+    <span class="label">Vandaag tot nu toe</span>
+    <span><b>${feeds.length}</b> ${feeds.length === 1 ? 'voeding' : 'voedingen'}${ml ? ` (<b>${ml}</b> ml fles)` : ''}</span>
+    <span><b>${wet}</b> nat</span>
+    <span><b>${dirty}</b> poep</span>`;
 }
 
 function renderTimeline() {
@@ -116,7 +117,7 @@ function renderTimeline() {
       <span class="time">${timeFmt.format(when)}</span>
       <span class="dot" aria-hidden="true"></span>
       <span class="what">${escapeHtml(describe(e))}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
-      <span class="gap" title="Since previous ${e.type}">${gap}</span>
+      <span class="gap" title="Sinds vorige ${e.type === 'feed' ? 'voeding' : 'luier'}">${gap}</span>
     </button></li>`;
   });
   list.innerHTML = html;
@@ -147,7 +148,7 @@ async function refresh() {
     render();
   } catch (err) {
     console.error(err);
-    banner(`Couldn't load the latest entries (${err.message}). Showing what we had.`, true);
+    banner(`Kon de nieuwste gegevens niet laden (${err.message}). Je ziet de laatst bekende stand.`, true);
   }
 }
 
@@ -160,14 +161,14 @@ async function log(entry, sourceBtn) {
     const row = await store.add({ created_by: safeGet(NAME_KEY) || null, ...entry });
     entries = [row, ...entries].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
     render();
-    toast(`Logged: ${describe(row)}`, async () => {
+    toast(`Gelogd: ${describe(row)}`, async () => {
       await store.remove(row.id);
       entries = entries.filter(e => e.id !== row.id);
       render();
     });
   } catch (err) {
     console.error(err);
-    toast(`Not saved: ${err.message}`);
+    toast(`Niet opgeslagen: ${err.message}`);
   }
 }
 
@@ -226,7 +227,7 @@ $('#edit-dialog').addEventListener('close', async () => {
       await store.remove(entry.id);
       entries = entries.filter(e => e.id !== entry.id);
       render();
-      toast('Entry deleted', async () => {
+      toast('Verwijderd', async () => {
         const { id, created_at, space_id, ...rest } = entry;
         await store.add(rest);
         await refresh();
@@ -240,11 +241,11 @@ $('#edit-dialog').addEventListener('close', async () => {
       if (entry.kind === 'bottle') patch.amount_ml = Math.round(Number($('#edit-amount').value)) || null;
       await store.update(entry.id, patch);
       await refresh();
-      toast('Saved');
+      toast('Opgeslagen');
     }
   } catch (err) {
     console.error(err);
-    toast(`Not saved: ${err.message}`);
+    toast(`Niet opgeslagen: ${err.message}`);
   }
 });
 
