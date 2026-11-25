@@ -1,7 +1,7 @@
 {
   "name": "Baby Log",
   "short_name": "Baby Log",
-  "description": "Log feeds and diapers together.",
+  "description": "Houd samen voedingen en luiers bij.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
