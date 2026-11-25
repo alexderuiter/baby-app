@@ -49,7 +49,7 @@ export async function verifyCode(email, code) {
   const { data, error } = await db.auth.verifyOtp({ email, token: code, type: 'email' });
   if (error) {
     throw new Error(/expired|invalid/i.test(error.message)
-      ? "That code didn't work. Check it, or go back and send a new email."
+      ? 'Deze code klopt niet. Controleer hem, of ga terug en vraag een nieuwe e-mail aan.'
       : error.message);
   }
   return data.user;
@@ -169,5 +169,5 @@ export async function removeMember(spaceId, userId) {
   const db = await getClient();
   const rows = check(await db.from('members').delete()
     .eq('space_id', spaceId).eq('user_id', userId).select('user_id'));
-  if (!rows.length) throw new Error("Couldn't remove this caregiver");
+  if (!rows.length) throw new Error('Kon deze verzorger niet verwijderen');
 }

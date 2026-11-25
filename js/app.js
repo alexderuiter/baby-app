@@ -124,7 +124,7 @@ function renderTimeline() {
     const gapMs = prev ? when - new Date(prev.occurred_at) : 0;
     const gap = gapMs >= 60000 ? `+${duration(gapMs)}` : '';
     const who = nameFor(e);
-    const sub = [who ? `by ${who}` : '', e.note].filter(Boolean).join(' · ');
+    const sub = [who ? `door ${who}` : '', e.note].filter(Boolean).join(' · ');
     html += `<li><button class="entry ${e.type}" data-id="${escapeHtml(e.id)}">
       <span class="time">${timeFmt.format(when)}</span>
       <span class="dot" aria-hidden="true"></span>
@@ -294,7 +294,7 @@ $('#settings-dialog').addEventListener('close', async () => {
     render();
   } catch (err) {
     console.error(err);
-    toast(`Name not saved: ${err.message}`);
+    toast(`Naam niet opgeslagen: ${err.message}`);
   }
 });
 
@@ -311,15 +311,15 @@ async function loadMembers() {
 }
 
 function renderMembers() {
-  $('#members-title').textContent = `Caregivers of ${me.space.name}`;
+  $('#members-title').textContent = `Verzorgers van ${me.space.name}`;
   const iAmOwner = me.space.role === 'owner';
   $('#member-list').innerHTML = [...members.values()].map(m => {
     const isMe = m.user_id === me.user.id;
     const canRemove = m.role !== 'owner' && (isMe || iAmOwner);
     return `<li>
-      <span class="who">${escapeHtml(m.display_name)}${isMe ? ' (you)' : ''}</span>
-      ${m.role === 'owner' ? '<span class="role">owner</span>' : ''}
-      ${canRemove ? `<button type="button" class="danger" data-remove="${escapeHtml(m.user_id)}">${isMe ? 'Leave' : 'Remove'}</button>` : ''}
+      <span class="who">${escapeHtml(m.display_name)}${isMe ? ' (jij)' : ''}</span>
+      ${m.role === 'owner' ? '<span class="role">beheerder</span>' : ''}
+      ${canRemove ? `<button type="button" class="danger" data-remove="${escapeHtml(m.user_id)}">${isMe ? 'Verlaten' : 'Verwijderen'}</button>` : ''}
     </li>`;
   }).join('');
 }
@@ -330,7 +330,7 @@ $('#member-list').addEventListener('click', async ev => {
   if (!btn) return;
   if (!btn.dataset.armed) {
     btn.dataset.armed = '1';
-    btn.textContent = 'Tap again to confirm';
+    btn.textContent = 'Tik nog eens om te bevestigen';
     return;
   }
   const userId = btn.dataset.remove;
@@ -351,7 +351,7 @@ async function showOpenInvites() {
   try {
     const n = await cloud.countOpenInvites(me.space.id);
     $('#open-invites').hidden = n === 0;
-    $('#open-invites-text').textContent = n === 1 ? '1 invite link is still open.' : `${n} invite links are still open.`;
+    $('#open-invites-text').textContent = n === 1 ? 'Er staat nog 1 uitnodigingslink open.' : `Er staan nog ${n} uitnodigingslinks open.`;
   } catch (err) {
     console.error(err);
   }
@@ -364,11 +364,11 @@ $('#make-invite').addEventListener('click', async () => {
     $('#invite-link').value = await cloud.createInvite(me.space.id);
     $('#invite-row').hidden = false;
     btn.hidden = true;
-    $('#copy-invite').textContent = navigator.share ? 'Share' : 'Copy';
+    $('#copy-invite').textContent = navigator.share ? 'Delen' : 'Kopiëren';
     showOpenInvites();
   } catch (err) {
     console.error(err);
-    toast(`Couldn't create a link: ${err.message}`);
+    toast(`Kon geen link maken: ${err.message}`);
   } finally {
     btn.disabled = false;
   }
@@ -377,8 +377,8 @@ $('#make-invite').addEventListener('click', async () => {
 $('#copy-invite').addEventListener('click', async () => {
   const link = $('#invite-link').value;
   try {
-    if (navigator.share) await navigator.share({ title: 'Baby Log', text: `Join the baby log for ${me.space.name}`, url: link });
-    else { await navigator.clipboard.writeText(link); $('#copy-invite').textContent = 'Copied'; }
+    if (navigator.share) await navigator.share({ title: 'Baby Log', text: `Doe mee met het logboek van ${me.space.name}`, url: link });
+    else { await navigator.clipboard.writeText(link); $('#copy-invite').textContent = 'Gekopieerd'; }
   } catch {
     $('#invite-link').select();
   }
@@ -390,7 +390,7 @@ $('#revoke-invites').addEventListener('click', async () => {
     $('#invite-row').hidden = true;
     $('#make-invite').hidden = false;
     await showOpenInvites();
-    toast('Open invite links cancelled');
+    toast('Open uitnodigingslinks ingetrokken');
   } catch (err) {
     console.error(err);
     toast(err.message);
@@ -475,8 +475,8 @@ async function describeInvite(token) {
   const el = $('#gate-invite');
   if (!info) { el.hidden = true; return null; }
   el.textContent = info.usable
-    ? `${info.invited_by || 'Someone'} invited you to the baby log for ${info.space_name}.`
-    : `This invite to the log for ${info.space_name} has expired. Ask ${info.invited_by || 'them'} for a new link.`;
+    ? `${info.invited_by || 'Iemand'} nodigt je uit voor het logboek van ${info.space_name}.`
+    : `Deze uitnodiging voor het logboek van ${info.space_name} is verlopen. Vraag ${info.invited_by || 'de afzender'} om een nieuwe link.`;
   el.hidden = false;
   return info;
 }
@@ -485,13 +485,13 @@ async function describeInvite(token) {
 async function joinGate(token, spaces) {
   const info = await describeInvite(token);
   const finish = id => { cloud.clearPendingInvite(); $('#gate-invite').hidden = true; return id; };
-  if (!info) { finish(null); gateError('That invite link is not valid. Ask for a new one.'); return null; }
+  if (!info) { finish(null); gateError('Deze uitnodigingslink klopt niet. Vraag om een nieuwe.'); return null; }
   // Already in it: just open it.
   if (spaces.some(s => s.id === info.space_id)) return finish(info.space_id);
   if (!info.usable) { finish(null); return null; }
 
   return new Promise(resolve => {
-    $('#join-title').textContent = `Join the log for ${info.space_name}`;
+    $('#join-title').textContent = `Meedoen met het logboek van ${info.space_name}`;
     $('#join-name').value = spaces[0]?.myName || safeGet(NAME_KEY) || '';
     $('#join-skip').onclick = () => resolve(finish(null));
     onSubmit('#gate-join', async () => {
@@ -561,7 +561,7 @@ async function start() {
     } catch (err) {
       console.error(err);
       showGate(null);
-      gateError(`Couldn't connect (${err.message}). Check your connection and reopen the app.`);
+      gateError(`Geen verbinding (${err.message}). Controleer je internet en open de app opnieuw.`);
       return;
     }
   } else {

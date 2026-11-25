@@ -28,45 +28,45 @@
     <p id="gate-invite" class="gate-invite" hidden></p>
 
     <form id="gate-signin" class="gate-card" hidden>
-      <h2>Sign in</h2>
-      <p class="muted">We'll email you a link to sign in. No password needed.</p>
-      <label class="field">Email
-        <input type="email" id="signin-email" required autocomplete="email" inputmode="email" placeholder="you@example.com">
+      <h2>Inloggen</h2>
+      <p class="muted">We mailen je een link om in te loggen. Geen wachtwoord nodig.</p>
+      <label class="field">E-mailadres
+        <input type="email" id="signin-email" required autocomplete="email" inputmode="email" placeholder="jij@voorbeeld.nl">
       </label>
-      <button class="primary">Email me a sign-in link</button>
+      <button class="primary">Stuur me een inloglink</button>
     </form>
 
     <form id="gate-code" class="gate-card" hidden>
-      <h2>Check your email</h2>
-      <p class="muted">We sent a sign-in link to <b id="code-email"></b>. Tap it on this phone, or type the code from the email here.</p>
+      <h2>Check je e-mail</h2>
+      <p class="muted">We hebben een inloglink gestuurd naar <b id="code-email"></b>. Tik erop op deze telefoon, of vul hier de code uit de e-mail in.</p>
       <label class="field">Code
         <input type="text" id="signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required placeholder="123456">
       </label>
-      <button class="primary">Sign in</button>
-      <button type="button" class="link-btn" id="code-back">Use a different email</button>
+      <button class="primary">Inloggen</button>
+      <button type="button" class="link-btn" id="code-back">Ander e-mailadres gebruiken</button>
     </form>
 
     <form id="gate-join" class="gate-card" hidden>
-      <h2 id="join-title">Join the log</h2>
-      <label class="field">Your name
-        <input type="text" id="join-name" maxlength="40" required autocomplete="given-name" placeholder="e.g. Sam">
-        <small>Shown next to what you log, so others know who did it.</small>
+      <h2 id="join-title">Meedoen met het logboek</h2>
+      <label class="field">Je naam
+        <input type="text" id="join-name" maxlength="40" required autocomplete="given-name" placeholder="bijv. Sam">
+        <small>Staat bij wat je invoert, zodat anderen zien wie het deed.</small>
       </label>
-      <button class="primary">Join</button>
-      <button type="button" class="link-btn" id="join-skip">Not now, set up my own log</button>
+      <button class="primary">Meedoen</button>
+      <button type="button" class="link-btn" id="join-skip">Nu niet, ik maak mijn eigen logboek</button>
     </form>
 
     <form id="gate-create" class="gate-card" hidden>
-      <h2>Set up your baby log</h2>
-      <p class="muted">You can invite other caregivers right after this.</p>
-      <label class="field">Baby's name
-        <input type="text" id="create-baby" maxlength="60" required placeholder="e.g. Mila">
+      <h2>Maak je logboek aan</h2>
+      <p class="muted">Daarna kun je meteen andere verzorgers uitnodigen.</p>
+      <label class="field">Naam van de baby
+        <input type="text" id="create-baby" maxlength="60" required placeholder="bijv. Mila">
       </label>
-      <label class="field">Your name
-        <input type="text" id="create-name" maxlength="40" required autocomplete="given-name" placeholder="e.g. Alex">
+      <label class="field">Je naam
+        <input type="text" id="create-name" maxlength="40" required autocomplete="given-name" placeholder="bijv. Alex">
       </label>
-      <button class="primary">Create log</button>
-      <p class="muted">Got an invite link from someone? Open that link instead to join their log.</p>
+      <button class="primary">Logboek aanmaken</button>
+      <p class="muted">Heb je een uitnodigingslink gekregen? Open die link om mee te doen met dat logboek.</p>
     </form>
 
     <p id="gate-error" class="gate-error" role="alert" hidden></p>
@@ -180,21 +180,21 @@
         <small>Shown next to what you log, so others know who did it.</small>
       </label>
       <div id="share-block" class="share-block">
-        <h3 id="members-title">Caregivers</h3>
+        <h3 id="members-title">Verzorgers</h3>
         <ul id="member-list" class="member-list"></ul>
-        <h3>Invite someone</h3>
-        <p class="muted">Creates a link that works for 7 days. Whoever opens it signs in with their email and joins this log.</p>
-        <button type="button" id="make-invite" class="secondary">Create invite link</button>
+        <h3>Iemand uitnodigen</h3>
+        <p class="muted">Maakt een link die 7 dagen werkt. Wie hem opent, logt in met e-mail en doet mee met dit logboek.</p>
+        <button type="button" id="make-invite" class="secondary">Uitnodigingslink maken</button>
         <div class="copy-row" id="invite-row" hidden>
-          <input type="text" id="invite-link" readonly aria-label="Invite link">
-          <button type="button" id="copy-invite" class="secondary">Share</button>
+          <input type="text" id="invite-link" readonly aria-label="Uitnodigingslink">
+          <button type="button" id="copy-invite" class="secondary">Delen</button>
         </div>
         <p class="muted" id="open-invites" hidden>
           <span id="open-invites-text"></span>
-          <button type="button" class="link-btn" id="revoke-invites">Cancel them</button>
+          <button type="button" class="link-btn" id="revoke-invites">Intrekken</button>
         </p>
-        <p class="muted signed-in">Signed in as <span id="signed-in-as"></span>
-          <button type="button" class="link-btn" id="sign-out">Sign out</button></p>
+        <p class="muted signed-in">Ingelogd als <span id="signed-in-as"></span>
+          <button type="button" class="link-btn" id="sign-out">Uitloggen</button></p>
       </div>
       <p id="local-note" class="muted" hidden>
         This log is stored on this device only. To share it between phones, connect Supabase (see the README).

@@ -29,7 +29,7 @@ Without Supabase settings it stores everything in the browser's localStorage.
 5. In **Authentication → URL Configuration**, set the **Site URL** to where the app is hosted and add
    `https://<your-site>/**` under **Redirect URLs**, so sign-in links come back to the app.
 6. In **Authentication → Email Templates → Magic Link**, add the code to the email, for example
-   `<p>Or enter this code in the app: <b>{{ .Token }}</b></p>`. On a phone where the app is installed
+   `<p>Of vul deze code in de app in: <b>{{ .Token }}</b></p>`. On a phone where the app is installed
    on the home screen, the email link opens the browser instead of the app, so the code is the easy way in there.
 7. Open the app, sign in with your email, and set up your baby's log. Then open the gear and tap
    **Create invite link** to send to the other caregivers.
