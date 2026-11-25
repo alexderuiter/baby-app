@@ -434,6 +434,15 @@ function syncSessionSheet() {
     c.setAttribute('aria-pressed', String(Number(c.dataset.ml) === Number($('#s-ml').value))));
 }
 
+const FINE_POINTER = matchMedia('(pointer: fine)').matches;
+// Open a bottom sheet scrolled to the top, with focus on its title (not on a field) so iOS
+// doesn't pop up a picker or keyboard and shift the sheet as soon as it opens.
+function showSheet(dialog) {
+  dialog.showModal();
+  dialog.scrollTop = 0;
+  dialog.querySelector('h2')?.focus({ preventScroll: true });
+}
+
 function openSession(id, mode, focus) {
   const s = id ? entries.find(e => e.id === id) : null;
   sheet = { id, mode, original: s };
@@ -459,8 +468,9 @@ function openSession(id, mode, focus) {
   renderTagChips($('#s-tags-how'), TAGS_HOW, s?.tags || []);
   renderTagChips($('#s-tags-baby'), TAGS_BABY, s?.tags || []);
   syncSessionSheet();
-  $('#session-dialog').showModal();
-  if (focus) $(focus).focus();
+  showSheet($('#session-dialog'));
+  // On phones, focusing a field opens the keyboard and scrolls the sheet past the times; only do it with a mouse.
+  if (focus && FINE_POINTER) $(focus).focus({ preventScroll: true });
 }
 
 $('#session-form').addEventListener('input', syncSessionSheet);
@@ -547,7 +557,7 @@ function openEntry(id) {
   $('#edit-amount-field').hidden = e.kind !== 'bottle';
   $('#edit-amount').value = e.amount_ml ?? '';
   $('#edit-note').value = e.note ?? '';
-  $('#edit-dialog').showModal();
+  showSheet($('#edit-dialog'));
 }
 
 $('#edit-dialog').addEventListener('close', async () => {
@@ -586,7 +596,7 @@ function openSettings(firstRun = false) {
     loadMembers().then(renderMembers).catch(console.error);
     showOpenInvites();
   }
-  $('#settings-dialog').showModal();
+  showSheet($('#settings-dialog'));
 }
 
 $('#settings-dialog').addEventListener('close', async () => {

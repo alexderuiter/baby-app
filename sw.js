@@ -1,6 +1,6 @@
 // App-shell cache so the app opens instantly and works offline (local mode).
 // Bump VERSION when shipping changes to force an update.
-const VERSION = 'babylog-v7';
+const VERSION = 'babylog-v8';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/space.js', 'js/cloud.js', 'js/config.js',

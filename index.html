@@ -179,8 +179,8 @@
   <!-- Feeding session: finish, edit or enter afterwards -->
   <dialog id="session-dialog" class="sheet">
     <form method="dialog" id="session-form">
-      <h2 id="session-title">Voeding afronden</h2>
-      <div class="grid-2">
+      <h2 id="session-title" tabindex="-1" autofocus>Voeding afronden</h2>
+      <div class="grid-2 times">
         <label class="field">Begin
           <input type="datetime-local" id="s-start" required>
         </label>
@@ -224,7 +224,7 @@
   <!-- Edit diaper (or old single feed) -->
   <dialog id="edit-dialog" class="sheet">
     <form method="dialog" id="edit-form">
-      <h2 id="edit-title">Bewerken</h2>
+      <h2 id="edit-title" tabindex="-1" autofocus>Bewerken</h2>
       <label class="field">Tijd
         <input type="datetime-local" id="edit-time" required>
       </label>
@@ -246,7 +246,7 @@
   <!-- Settings / first run -->
   <dialog id="settings-dialog" class="sheet">
     <form method="dialog" id="settings-form">
-      <h2 id="settings-title">Instellingen</h2>
+      <h2 id="settings-title" tabindex="-1" autofocus>Instellingen</h2>
       <label class="field">Je naam
         <input type="text" id="settings-name" maxlength="40" placeholder="bijv. Alex" autocomplete="given-name">
         <small>Staat bij wat je logt, zodat anderen zien wie het deed.</small>
