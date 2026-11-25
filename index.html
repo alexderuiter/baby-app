@@ -27,10 +27,11 @@
     <div id="mode-banner" class="banner" hidden></div>
 
     <section class="status" aria-live="polite">
-      <article class="status-card feed">
+      <article class="status-card feed" id="feed-card">
         <h2>Laatste voeding</h2>
         <p class="ago" id="last-feed-ago">–</p>
         <p class="detail" id="last-feed-detail">Nog niets gelogd</p>
+        <p class="next" id="next-feed"></p>
       </article>
       <article class="status-card diaper">
         <h2>Laatste luier</h2>
@@ -38,22 +39,47 @@
         <p class="detail" id="last-diaper-detail">Nog niets gelogd</p>
       </article>
     </section>
+    <div id="due-banner" class="due-banner" role="status" hidden></div>
 
     <section class="actions" aria-label="Iets loggen">
       <h2 class="section-title">Voeding</h2>
-      <div class="btn-row">
-        <button class="big-btn feed" data-type="feed" data-kind="left">
-          <span class="emoji" aria-hidden="true">🤱</span><span>Links</span>
-          <span class="hint" id="hint-left"></span>
+      <div id="feed-idle">
+        <button class="big-btn feed wide" id="start-feed">
+          <span class="emoji" aria-hidden="true">🍼</span><span>Voeding starten</span>
         </button>
-        <button class="big-btn feed" data-type="feed" data-kind="right">
-          <span class="emoji" aria-hidden="true">🤱</span><span>Rechts</span>
-          <span class="hint" id="hint-right"></span>
-        </button>
-        <button class="big-btn feed" id="bottle-btn">
-          <span class="emoji" aria-hidden="true">🍼</span><span>Fles</span>
-        </button>
+        <button class="link-btn subtle" id="add-past-feed">Eerdere voeding invoeren</button>
       </div>
+
+      <div id="feed-active" class="session-card" hidden>
+        <div class="session-head">
+          <div>
+            <strong>Voeding bezig</strong>
+            <span class="muted" id="session-since"></span>
+          </div>
+          <button class="link-btn subtle" id="session-edit">Aanpassen</button>
+        </div>
+        <div class="btn-row two">
+          <button class="big-btn feed timer" data-side="left">
+            <span class="side">Links</span>
+            <span class="clock" id="clock-left">0:00</span>
+            <span class="state" id="state-left">▶ Start</span>
+          </button>
+          <button class="big-btn feed timer" data-side="right">
+            <span class="side">Rechts</span>
+            <span class="clock" id="clock-right">0:00</span>
+            <span class="state" id="state-right">▶ Start</span>
+          </button>
+        </div>
+        <div class="bottle-row">
+          <span>🍼 Fles</span>
+          <div class="chips" id="session-bottle-chips"></div>
+        </div>
+        <div class="session-actions">
+          <button class="secondary" id="session-cancel">Annuleren</button>
+          <button class="primary" id="session-finish">Voeding afronden</button>
+        </div>
+      </div>
+
       <h2 class="section-title">Luier</h2>
       <div class="btn-row">
         <button class="big-btn diaper" data-type="diaper" data-kind="wet">
@@ -68,12 +94,16 @@
       </div>
     </section>
 
-    <section class="today" id="today" aria-label="Vandaag"></section>
-
-    <section class="timeline-wrap" aria-label="Recente items">
-      <h2 class="section-title">Recent</h2>
+    <section class="day" aria-label="Dagoverzicht">
+      <div class="day-head">
+        <button class="icon-btn small" id="day-prev" aria-label="Vorige dag">‹</button>
+        <h2 id="day-title">Vandaag</h2>
+        <button class="icon-btn small" id="day-next" aria-label="Volgende dag">›</button>
+      </div>
+      <div class="day-stats" id="day-stats"></div>
+      <div class="day-bar" id="day-bar" aria-hidden="true"></div>
       <ol id="timeline" class="timeline"></ol>
-      <p id="timeline-empty" class="empty">Tik op een knop hierboven om de eerste voeding of luier te loggen.</p>
+      <p id="timeline-empty" class="empty">Nog niets gelogd op deze dag.</p>
     </section>
   </main>
 
@@ -82,25 +112,52 @@
     <button id="toast-undo" class="link-btn">Ongedaan maken</button>
   </div>
 
-  <!-- Bottle amount -->
-  <dialog id="bottle-dialog" class="sheet">
-    <form method="dialog" id="bottle-form">
-      <h2>Fles</h2>
-      <div class="chips" id="bottle-presets"></div>
-      <label class="field">Hoeveelheid (ml)
-        <input type="number" id="bottle-amount" inputmode="numeric" min="1" max="999" required>
-      </label>
-      <label class="field">Tijd
-        <input type="datetime-local" id="bottle-time" required>
+  <!-- Feeding session: finish, edit or enter afterwards -->
+  <dialog id="session-dialog" class="sheet">
+    <form method="dialog" id="session-form">
+      <h2 id="session-title">Voeding afronden</h2>
+      <div class="grid-2">
+        <label class="field">Begin
+          <input type="datetime-local" id="s-start" required>
+        </label>
+        <label class="field">Einde
+          <input type="datetime-local" id="s-end">
+        </label>
+      </div>
+      <p class="muted small" id="s-duration"></p>
+      <div class="grid-3">
+        <label class="field">Links (min)
+          <input type="number" id="s-left" inputmode="numeric" min="0" max="600" placeholder="0">
+        </label>
+        <label class="field">Rechts (min)
+          <input type="number" id="s-right" inputmode="numeric" min="0" max="600" placeholder="0">
+        </label>
+        <label class="field">Fles (ml)
+          <input type="number" id="s-ml" inputmode="numeric" min="0" max="999" placeholder="0">
+        </label>
+      </div>
+      <div class="chips" id="s-ml-chips"></div>
+      <fieldset class="tags">
+        <legend>Hoe ging het?</legend>
+        <div class="chips" id="s-tags-how"></div>
+      </fieldset>
+      <fieldset class="tags">
+        <legend>Baby was</legend>
+        <div class="chips" id="s-tags-baby"></div>
+      </fieldset>
+      <label class="field">Notitie
+        <input type="text" id="s-note" maxlength="500" placeholder="Optioneel">
       </label>
       <div class="sheet-actions">
+        <button value="delete" formnovalidate class="danger" id="s-delete">Verwijderen</button>
+        <span class="spacer"></span>
         <button value="cancel" formnovalidate class="secondary">Annuleren</button>
-        <button value="save" class="primary">Fles loggen</button>
+        <button value="save" class="primary" id="s-save">Opslaan</button>
       </div>
     </form>
   </dialog>
 
-  <!-- Edit entry -->
+  <!-- Edit diaper (or old single feed) -->
   <dialog id="edit-dialog" class="sheet">
     <form method="dialog" id="edit-form">
       <h2 id="edit-title">Bewerken</h2>
@@ -129,6 +186,10 @@
       <label class="field">Je naam
         <input type="text" id="settings-name" maxlength="40" placeholder="bijv. Alex" autocomplete="given-name">
         <small>Staat bij wat je logt, zodat anderen zien wie het deed.</small>
+      </label>
+      <label class="field">Voedingsinterval (uur)
+        <input type="number" id="settings-interval" inputmode="decimal" min="1" max="8" step="0.5">
+        <small>Na zoveel uur sinds het begin van de laatste voeding krijg je een seintje.</small>
       </label>
       <div id="share-block" class="share-block">
         <h3>Share with other caregivers</h3>

@@ -1,4 +1,5 @@
--- Baby log: schema for Supabase (run once in the SQL editor).
+-- Baby log: schema for Supabase (run once in the SQL editor,
+-- then run the files in supabase/migrations/ in order).
 --
 -- v1 sharing model (placeholder until real sign-in lands):
 -- every entry belongs to a "space" identified by a long random code.
