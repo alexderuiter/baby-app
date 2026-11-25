@@ -268,7 +268,7 @@ $('#edit-dialog').addEventListener('close', async () => {
 
 // ---------- settings sheet ----------
 function openSettings(firstRun = false) {
-  $('#settings-title').textContent = firstRun ? 'Welcome! Who is logging?' : 'Settings';
+  $('#settings-title').textContent = firstRun ? 'Welkom! Wie houdt het bij?' : 'Instellingen';
   $('#settings-name').value = myName() || '';
   $('#share-block').hidden = !isShared;
   $('#local-note').hidden = isShared;
@@ -566,14 +566,14 @@ async function start() {
     }
   } else {
     spaceId = localSpaceId();
-    banner('Saved on this device only. Connect Supabase to share with others.');
+    banner('Alleen op dit apparaat opgeslagen. Koppel Supabase om te delen met anderen.');
   }
 
   try {
     store = await openStore(spaceId, { userId: me?.user.id });
   } catch (err) {
     console.error(err);
-    banner(`Couldn't connect to the shared log (${err.message}).`, true);
+    banner(`Geen verbinding met het gedeelde logboek (${err.message}).`, true);
     return;
   }
   store.subscribe(refresh);
