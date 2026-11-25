@@ -756,6 +756,10 @@ async function signInGate() {
   // The code is what works inside an installed app, where the email link opens the browser instead.
   const askCode = email => {
     $('#code-email').textContent = email;
+    const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    $('#code-hint').textContent = installed
+      ? 'Tik niet op de link in de e-mail (die opent de browser), maar vul hier de code van 6 cijfers in.'
+      : 'Tik op de link op deze telefoon, of vul hier de code uit de e-mail in.';
     $('#signin-code').value = '';
     onSubmit('#gate-code', async () => done(await cloud.verifyCode(email, $('#signin-code').value.trim())));
   };
