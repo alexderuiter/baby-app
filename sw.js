@@ -1,8 +1,8 @@
 // App-shell cache so the app opens instantly and works offline (local mode).
 // Bump VERSION when shipping changes to force an update.
-const VERSION = 'babylog-v9';
+const VERSION = 'babylog-v11';
 const SHELL = [
-  './', 'index.html', 'styles.css', 'manifest.webmanifest',
+  './', 'index.html', 'privacy.html', 'styles.css', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/space.js', 'js/cloud.js', 'js/config.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];

@@ -173,6 +173,9 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .gate-card .link-btn { justify-self: center; font-weight: 600; color: var(--muted); }
 .gate-invite { margin: 0; padding: 12px 16px; border-radius: 14px; background: var(--feed-soft); color: var(--feed); font-weight: 600; }
 .gate-error { margin: 0; color: var(--danger); text-align: center; }
+.gate-about { display: grid; gap: 6px; padding: 0 4px; }
+.gate-about p { margin: 0; line-height: 1.45; }
+.gate-about a { color: inherit; text-decoration: underline; }
 button:disabled { opacity: .6; cursor: default; }
 
 /* caregivers list in settings */
@@ -314,3 +317,28 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; ma
 .stat.wide { grid-column: 1 / -1; padding: 8px 12px; }
 .stat.wide span { font-size: .85rem; }
 .stat.wide b { font-size: inherit; color: var(--text, inherit); }
+
+/* ---------- vitamin K and D drops ---------- */
+:root { --vit: #7d6aa8; --vit-soft: #f1eef8; }
+@media (prefers-color-scheme: dark) { :root { --vit: #bcaee0; --vit-soft: #262233; } }
+.vit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vit-btn {
+  display: flex; align-items: center; gap: 10px; text-align: left; min-height: 64px;
+  padding: 12px 14px; border-radius: var(--radius); border: 1.5px dashed var(--border);
+  background: var(--surface); color: var(--text); transition: transform .08s ease;
+}
+.vit-btn:active { transform: scale(.97); }
+.vit-btn .i { width: 26px; height: 26px; color: var(--muted); stroke-width: 1.6; }
+.vit-btn b { display: block; font-size: 1rem; }
+.vit-btn small { display: block; color: var(--muted); font-size: .82rem; font-weight: 400; }
+.vit-btn[aria-pressed="true"] { background: var(--vit-soft); border: 1.5px solid transparent; color: var(--vit); }
+.vit-btn[aria-pressed="true"] .i, .vit-btn[aria-pressed="true"] small { color: var(--vit); }
+.vit-btn.flash { animation: flash .5s ease; }
+.vit-row.compact .vit-btn { min-height: 52px; padding: 8px 12px; }
+.vit-row.compact .vit-btn .i { width: 22px; height: 22px; }
+.vit-day { display: grid; gap: 8px; margin-top: 12px; font-weight: 600; color: var(--muted); font-size: .9rem; }
+.due-banner .banner-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.due-banner .banner-btn {
+  border: 0; border-radius: 10px; padding: 9px 14px;
+  background: var(--due); color: var(--surface); font-weight: 600; font-size: .88rem;
+}

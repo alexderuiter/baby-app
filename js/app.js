@@ -41,6 +41,10 @@ function milkButtons(selected) {
     `<button type="button" data-milk="${key}" aria-pressed="${selected === key}">${label}</button>`).join('');
 }
 
+// Daily vitamin drops: one entry (type 'vitamin', kind 'k' | 'd') per day that it was given.
+const VITAMINS = { k: 'Vitamine K', d: 'Vitamine D' };
+const VIT_REMIND_HOUR = 18; // from this hour on, remind if one isn't ticked off yet today
+
 let store;
 let entries = [];
 let undoTimer;
@@ -85,6 +89,7 @@ function intervalHours() {
   return v >= 1 && v <= 8 ? v : 3;
 }
 
+const isVitamin = e => e.type === 'vitamin';
 const isSession = e => e.type === 'feed' && e.kind === 'session';
 const isRunning = e => isSession(e) && !e.ended_at;
 
@@ -154,6 +159,7 @@ const lastFeed = () => entries.find(e => e.type === 'feed');
 function render() {
   renderStatus();
   renderActive();
+  renderVitamins();
   renderDay();
 }
 
@@ -184,11 +190,86 @@ function renderStatus() {
       `De laatste voeding begon ${duration(Date.now() - new Date(feed.occurred_at))} geleden. Misschien tijd voor een voeding, als de baby eraan toe is.`;
   }
 
+  renderVitaminBanner();
+
   const diaper = entries.find(e => e.type === 'diaper');
   $('#last-diaper-ago').textContent = diaper ? ago(diaper.occurred_at) : '–';
   $('#last-diaper-detail').textContent = diaper
     ? `${describe(diaper)} om ${fmtTime(diaper.occurred_at)}`
     : 'Nog niets gelogd';
+}
+
+// ---------- vitamins ----------
+// All vitamin entries of one kind on the day starting at `from`.
+function vitaminsOn(kind, offset) {
+  const from = startOfDay(offset), to = startOfDay(offset + 1);
+  return entries.filter(e => isVitamin(e) && e.kind === kind &&
+    new Date(e.occurred_at) >= from && new Date(e.occurred_at) < to);
+}
+
+function vitaminButtons(offset) {
+  return Object.entries(VITAMINS).map(([kind, label]) => {
+    const done = vitaminsOn(kind, offset).at(-1); // the first one given that day
+    const sub = done
+      ? [offset === 0 ? fmtTime(done.occurred_at) : 'Gegeven', nameFor(done)].filter(Boolean).join(' · ')
+      : 'Nog niet gegeven';
+    return `<button type="button" class="vit-btn" data-kind="${kind}" data-offset="${offset}" aria-pressed="${Boolean(done)}">
+      ${icon(done ? 'circle-check' : 'circle')}<span><b>${label}</b><small>${escapeHtml(sub)}</small></span>
+    </button>`;
+  }).join('');
+}
+
+function renderVitamins() {
+  const el = $('#vit-today');
+  const html = vitaminButtons(0);
+  if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
+}
+
+function renderVitaminBanner() {
+  const missing = Object.keys(VITAMINS).filter(k => !vitaminsOn(k, 0).length);
+  const show = new Date().getHours() >= VIT_REMIND_HOUR && missing.length > 0;
+  $('#vit-banner').hidden = !show;
+  if (!show) return;
+  const text = missing.length === 2
+    ? 'Vitamine K en D zijn vandaag nog niet gegeven.'
+    : `${VITAMINS[missing[0]]} is vandaag nog niet gegeven.`;
+  const btns = missing.map(k => `<button type="button" class="banner-btn" data-kind="${k}" data-offset="0">${
+    missing.length === 2 ? `${k.toUpperCase()} afvinken` : 'Afvinken'}</button>`).join('');
+  const html = `${icon('bell')}<div><span>${text}</span><div class="banner-actions">${btns}</div></div>`;
+  const el = $('#vit-banner');
+  if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
+}
+
+// Tick off (or undo) a vitamin for a day. Past days are stored at noon of that day.
+async function toggleVitamin(kind, offset, btn) {
+  flash(btn);
+  const given = vitaminsOn(kind, offset);
+  const label = VITAMINS[kind];
+  try {
+    if (given.length) {
+      for (const e of given) await store.remove(e.id);
+      entries = entries.filter(e => !given.includes(e));
+      render();
+      toast(`${label} weggehaald`, async () => {
+        for (const e of given) { const { id, created_at, space_id, ...rest } = e; await store.add(rest); }
+        await refresh();
+      });
+    } else {
+      let at = new Date();
+      if (offset !== 0) { at = startOfDay(offset); at.setHours(12); }
+      const row = await addEntry({ type: 'vitamin', kind, occurred_at: at.toISOString() });
+      toast(`${label} afgevinkt`, async () => {
+        await store.remove(row.id);
+        entries = entries.filter(e => e.id !== row.id);
+        render();
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    toast(/check constraint|violates/i.test(err.message)
+      ? 'Niet opgeslagen: de database moet nog bijgewerkt worden voor vitamines.'
+      : `Niet opgeslagen: ${err.message}`);
+  }
 }
 
 function renderActive() {
@@ -230,9 +311,13 @@ function renderDay() {
   const from = startOfDay(dayOffset);
   const to = startOfDay(dayOffset + 1);
   const inDay = e => { const t = new Date(e.occurred_at); return t >= from && t < to; };
-  const list = entries.filter(inDay);
+  const list = entries.filter(e => inDay(e) && !isVitamin(e));
   $('#day-title').textContent = dayLabel(from);
   $('#day-next').disabled = dayOffset >= 0;
+
+  // Vitamins for earlier days (today's are with the buttons above), so they can be filled in afterwards.
+  $('#vit-day-wrap').hidden = dayOffset === 0;
+  if (dayOffset !== 0) $('#vit-day').innerHTML = vitaminButtons(dayOffset);
 
   // Stats
   const feeds = list.filter(e => e.type === 'feed');
@@ -937,6 +1022,12 @@ $('#session-cancel').addEventListener('click', () => {
   const s = activeSession();
   if (s) removeEntry(s, 'Voeding geannuleerd').catch(fail);
 });
+for (const sel of ['#vit-today', '#vit-day', '#vit-banner']) {
+  $(sel).addEventListener('click', ev => {
+    const btn = ev.target.closest('[data-kind]');
+    if (btn) toggleVitamin(btn.dataset.kind, Number(btn.dataset.offset), btn);
+  });
+}
 $('#settings-btn').addEventListener('click', () => openSettings());
 $('#timeline').addEventListener('click', ev => {
   const btn = ev.target.closest('.entry');

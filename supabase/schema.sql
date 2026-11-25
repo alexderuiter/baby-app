@@ -44,11 +44,13 @@ create index if not exists invites_space_idx on public.invites (space_id);
 create table if not exists public.entries (
   id              uuid primary key default gen_random_uuid(),
   space_id        uuid not null references public.spaces (id) on delete cascade,
-  type            text not null check (type in ('feed', 'diaper')),
+  type            text not null check (type in ('feed', 'diaper', 'vitamin')),
   kind            text not null check (
                     -- 'session' = a feeding session (left/right/bottle are older single entries)
                     (type = 'feed'   and kind in ('session', 'left', 'right', 'bottle')) or
-                    (type = 'diaper' and kind in ('wet', 'dirty', 'both'))
+                    (type = 'diaper' and kind in ('wet', 'dirty', 'both')) or
+                    -- daily vitamin drops, one entry per day given
+                    (type = 'vitamin' and kind in ('k', 'd'))
                   ),
   amount_ml       integer check (amount_ml is null or (amount_ml > 0 and amount_ml < 1000)),
   note            text check (note is null or char_length(note) <= 500),
