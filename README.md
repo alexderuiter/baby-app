@@ -2,10 +2,13 @@
 
 A small installable web app (PWA) for logging a baby's feeds and diapers together with other caregivers.
 
-- Big one-tap buttons: breast **Left / Right**, **Bottle** (with amount), diaper **Wet / Dirty / Both**
-- "Last feed … ago" and "Last diaper … ago" at the top, plus a "next" hint for which breast to use
-- Today's totals and a timeline of recent entries, with the time since the previous feed/diaper
-- Tap an entry to fix its time, amount or add a note, or delete it. Every log has an Undo.
+- Feeds are **sessions**: start a feed, time the left and right breast (tap to switch or pause), add bottle ml,
+  then finish with the end time and standard options (how it went, how the baby was). Everything stays editable,
+  so a forgotten timer is easy to fix. Past feeds can be entered afterwards.
+- One-tap diaper buttons: **Wet / Dirty / Both**
+- "Last feed … ago" and "Last diaper … ago" at the top, with the expected next feed and a warning once the
+  feeding interval (default 3 hours, from the start of the last feed; change it in settings) has passed
+- Day overview: totals, a 24-hour bar and the day's entries; browse back to earlier days
 - Shows who logged each entry
 - Works offline-first in "this device only" mode; connect Supabase to share between phones live
 
@@ -23,7 +26,8 @@ Without Supabase settings it stores everything in the browser's localStorage.
 ## Share between phones (Supabase)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run [`supabase/schema.sql`](supabase/schema.sql).
+2. In the SQL editor, run [`supabase/schema.sql`](supabase/schema.sql). It is complete for a new project; the files in
+   `supabase/migrations/` are only for projects set up with an earlier version (running them again is harmless).
 3. In **Project settings → API**, copy the project URL and the `anon` public key into [`js/config.js`](js/config.js).
 4. Host the folder anywhere static over HTTPS (GitHub Pages works: Settings → Pages → deploy from branch).
 5. In **Authentication → URL Configuration**, set the **Site URL** to where the app is hosted and add

@@ -172,3 +172,70 @@ button:disabled { opacity: .6; cursor: default; }
 .share-block h3 { margin-top: 6px; }
 .signed-in { margin-top: 8px; word-break: break-all; }
 .signed-in .link-btn { padding: 4px 6px; }
+
+/* ---------- feeding sessions ---------- */
+:root { --due: #b5731c; --due-soft: #fbecd6; }
+@media (prefers-color-scheme: dark) { :root { --due: #f0b66a; --due-soft: #3d2e1a; } }
+
+.status-card .next { margin: 6px 0 0; font-size: .85rem; font-weight: 600; color: var(--feed); }
+.status-card .next:empty { display: none; }
+.status-card.due { border-top-color: var(--due); }
+.status-card.due .ago, .status-card.due .next { color: var(--due); }
+.due-banner {
+  margin-top: 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--due-soft); color: var(--due); font-weight: 600; font-size: .92rem;
+}
+
+.big-btn.wide { width: 100%; min-height: 84px; flex-direction: row; gap: 12px; font-size: 1.15rem; }
+.link-btn.subtle { color: var(--muted); font-weight: 600; font-size: .9rem; text-decoration: none; padding: 10px 4px; }
+#feed-idle { display: grid; justify-items: center; gap: 2px; }
+
+.session-card {
+  background: var(--surface); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow);
+  display: grid; gap: 12px; border: 2px solid var(--feed);
+}
+.session-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.session-head .muted { display: inline; font-size: .85rem; }
+.session-head .link-btn { padding: 4px; flex: none; }
+.btn-row.two { grid-template-columns: 1fr 1fr; }
+.big-btn.timer { min-height: 120px; gap: 2px; }
+.big-btn.timer .side { font-size: .95rem; }
+.big-btn.timer .clock { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.big-btn.timer .state { font-size: .8rem; opacity: .85; }
+.big-btn.timer.running { background: var(--feed); color: var(--surface); }
+.bottle-row { display: grid; gap: 8px; font-weight: 600; color: var(--muted); font-size: .9rem; }
+.session-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+
+.grid-2, .grid-3 { display: grid; gap: 10px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.grid-2 input[type="datetime-local"] { font-size: .9rem; padding: 10px 8px; }
+.small { font-size: .85rem; }
+.tags { border: 0; padding: 0; margin: 0; }
+.tags legend { font-weight: 600; font-size: .9rem; margin-bottom: 8px; padding: 0; }
+.chip { padding: 8px 14px; font-size: .9rem; }
+.sheet { max-height: 92vh; overflow-y: auto; }
+
+/* ---------- day overview ---------- */
+.day { margin-top: 26px; padding-bottom: 40px; }
+.day-head { display: flex; align-items: center; justify-content: space-between; }
+.day-head h2 { margin: 0; font-size: 1.1rem; }
+.icon-btn.small { font-size: 1.6rem; line-height: 1; padding: 4px 14px; margin: 0; color: var(--muted); border-radius: 10px; }
+.icon-btn.small:disabled { opacity: .25; }
+.day-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px;
+}
+.day-stats:empty { display: none; }
+.stat { background: var(--surface); border-radius: 14px; padding: 10px 12px; box-shadow: var(--shadow); display: grid; }
+.stat b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.stat b small { color: var(--muted); font-weight: 400; margin: 0 2px; }
+.stat span { color: var(--muted); font-size: .78rem; }
+.day-bar {
+  position: relative; height: 34px; margin: 14px 0 22px; border-radius: 8px; background: var(--surface-2);
+}
+.day-bar .blk { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: var(--feed); }
+.day-bar .tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--diaper); opacity: .8; }
+.day-bar .now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .5; }
+.day-bar .hour { position: absolute; top: 100%; font-size: .68rem; color: var(--muted); transform: translateX(-50%); margin-top: 3px; }
+.day-bar .hour:first-of-type { transform: none; }
+.entry .time small { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }

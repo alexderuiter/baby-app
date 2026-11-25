@@ -1,4 +1,6 @@
 -- Baby log: schema for Supabase (run once in the SQL editor).
+-- Complete for a new project. supabase/migrations/ holds upgrades for projects set up
+-- with an earlier version; they are safe to run on top of this file too.
 --
 -- Sharing model:
 --   * Everyone signs in with their email (Supabase Auth, magic link or 6-digit code).
@@ -44,11 +46,19 @@ create table if not exists public.entries (
   space_id        uuid not null references public.spaces (id) on delete cascade,
   type            text not null check (type in ('feed', 'diaper')),
   kind            text not null check (
-                    (type = 'feed'   and kind in ('left', 'right', 'bottle')) or
+                    -- 'session' = a feeding session (left/right/bottle are older single entries)
+                    (type = 'feed'   and kind in ('session', 'left', 'right', 'bottle')) or
                     (type = 'diaper' and kind in ('wet', 'dirty', 'both'))
                   ),
   amount_ml       integer check (amount_ml is null or (amount_ml > 0 and amount_ml < 1000)),
   note            text check (note is null or char_length(note) <= 500),
+  -- Feeding sessions: runs from occurred_at to ended_at (null while still running).
+  ended_at         timestamptz,
+  left_sec         integer check (left_sec  is null or left_sec  between 0 and 36000),
+  right_sec        integer check (right_sec is null or right_sec between 0 and 36000),
+  timer_side       text    check (timer_side is null or timer_side in ('left', 'right')),
+  timer_started_at timestamptz,
+  tags             text[]  not null default '{}',
   -- Who logged it: the account, plus their name at that moment (kept if they leave).
   created_by_user uuid default auth.uid() references auth.users (id) on delete set null,
   created_by      text check (created_by is null or char_length(created_by) <= 40),
@@ -137,7 +147,8 @@ grant  update (revoked_at) on public.invites to authenticated;
 revoke insert on public.invites from anon, authenticated;
 grant  insert (token, space_id) on public.invites to authenticated;
 revoke update on public.entries from anon, authenticated;
-grant  update (kind, amount_ml, note, occurred_at) on public.entries to authenticated;
+grant  update (kind, amount_ml, note, occurred_at, ended_at, left_sec, right_sec,
+                timer_side, timer_started_at, tags) on public.entries to authenticated;
 
 do $$
 declare p record;
