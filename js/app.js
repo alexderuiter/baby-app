@@ -5,6 +5,7 @@ const $ = sel => document.querySelector(sel);
 const NAME_KEY = 'babylog.name';
 const BOTTLE_KEY = 'babylog.lastBottle';
 const INTERVAL_KEY = 'babylog.intervalHours';
+const MILK_KEY = 'babylog.lastMilk';
 const MIN = 60000;
 const HOUR = 60 * MIN;
 
@@ -29,6 +30,16 @@ const TAGS_BABY = {
   crying: 'Huilerig',
 };
 const TAG_LABELS = { ...TAGS_HOW, ...TAGS_BABY };
+// What is in the bottle. Stored as one of these keys in entries.tags (no extra column needed).
+const MILK = { milk_breast: 'Moedermelk', milk_formula: 'Kunstvoeding' };
+const milkOf = e => (e?.tags || []).find(t => t in MILK) || null;
+const lastMilk = () => (safeGet(MILK_KEY) in MILK ? safeGet(MILK_KEY) : 'milk_breast');
+// Tags with the milk type replaced (or removed when there is no bottle).
+const withMilk = (tags, milk) => [...(tags || []).filter(t => !(t in MILK)), ...(milk ? [milk] : [])];
+function milkButtons(selected) {
+  return Object.entries(MILK).map(([key, label]) =>
+    `<button type="button" data-milk="${key}" aria-pressed="${selected === key}">${label}</button>`).join('');
+}
 
 let store;
 let entries = [];
@@ -96,7 +107,10 @@ function describe(e) {
     const r = minutes(sideSeconds(e, 'right'));
     if (l) parts.push(`L ${l} min`);
     if (r) parts.push(`R ${r} min`);
-    if (e.amount_ml) parts.push(`fles ${e.amount_ml} ml`);
+    if (e.amount_ml) {
+      const milk = milkOf(e);
+      parts.push(`fles ${e.amount_ml} ml${milk ? ` ${MILK[milk].toLowerCase()}` : ''}`);
+    }
     return parts.length ? `Voeding · ${parts.join(' · ')}` : 'Voeding';
   }
   let text = LABELS[e.type]?.[e.kind] ?? e.kind;
@@ -202,6 +216,9 @@ function renderActive() {
     `<button type="button" class="chip" data-ml="${ml}" aria-pressed="${(s.amount_ml || 0) === ml}">${ml ? `${ml} ml` : 'Geen'}</button>`).join('')
     + `<button type="button" class="chip" data-ml="other">Anders…</button>`;
   if (chips.innerHTML !== html) chips.innerHTML = html;
+  const seg = $('#session-milk');
+  const milkHtml = milkButtons(milkOf(s) || lastMilk());
+  if (seg.innerHTML !== milkHtml) seg.innerHTML = milkHtml;
 }
 
 function bottlePresets(extra) {
@@ -223,19 +240,28 @@ function renderDay() {
   const leftMin = minutes(sessions.reduce((t, e) => t + sideSeconds(e, 'left'), 0));
   const rightMin = minutes(sessions.reduce((t, e) => t + sideSeconds(e, 'right'), 0));
   const ml = feeds.reduce((t, e) => t + (e.amount_ml || 0), 0);
+  const mlOf = milk => feeds.filter(e => milkOf(e) === milk).reduce((t, e) => t + (e.amount_ml || 0), 0);
+  const mlBreast = mlOf('milk_breast');
+  const mlFormula = mlOf('milk_formula');
   const wet = list.filter(e => e.type === 'diaper' && e.kind !== 'dirty').length;
   const dirty = list.filter(e => e.type === 'diaper' && e.kind !== 'wet').length;
   const starts = feeds.map(e => new Date(e.occurred_at).getTime()).sort((a, b) => a - b);
   const gaps = starts.slice(1).map((t, i) => t - starts[i]);
   const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
   const stat = (value, label) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`;
+  // Split the bottle total per milk type once both were given that day.
+  const mlLabel = mlBreast && !mlFormula && mlBreast === ml ? 'ml moedermelk'
+    : mlFormula && !mlBreast && mlFormula === ml ? 'ml kunstvoeding' : 'ml fles';
+  const mlSplit = mlBreast && mlFormula
+    ? `<div class="stat wide"><span>Fles: <b>${mlBreast} ml</b> moedermelk · <b>${mlFormula} ml</b> kunstvoeding</span></div>` : '';
   $('#day-stats').innerHTML = list.length ? [
     stat(feeds.length, feeds.length === 1 ? 'voeding' : 'voedingen'),
     stat(`${leftMin}<small>/</small>${rightMin}`, 'min links/rechts'),
-    stat(ml, 'ml fles'),
+    stat(ml, mlLabel),
     stat(avgGap ? duration(avgGap) : '–', 'gem. tussen voedingen'),
     stat(wet, 'nat'),
     stat(dirty, 'poep'),
+    mlSplit,
   ].join('') : '';
 
   // 24-hour bar: blocks for feeds, ticks for diapers.
@@ -409,7 +435,16 @@ async function setSessionBottle(value) {
     return;
   }
   if (ml) safeSet(BOTTLE_KEY, String(ml));
-  try { await patchEntry(s.id, { amount_ml: ml || null }); } catch (err) { fail(err); }
+  const tags = withMilk(s.tags, ml ? milkOf(s) || lastMilk() : null);
+  try { await patchEntry(s.id, { amount_ml: ml || null, tags }); } catch (err) { fail(err); }
+}
+
+async function setSessionMilk(milk) {
+  const s = activeSession();
+  if (!s || !(milk in MILK)) return;
+  safeSet(MILK_KEY, milk);
+  if (!s.amount_ml) { renderActive(); return; }
+  try { await patchEntry(s.id, { tags: withMilk(s.tags, milk) }); } catch (err) { fail(err); }
 }
 
 // Session sheet. mode: 'finish' (end running session), 'edit' (existing), 'new' (enter afterwards).
@@ -465,6 +500,7 @@ function openSession(id, mode, focus) {
   $('#s-note').value = s?.note || '';
   $('#s-ml-chips').innerHTML = bottlePresets(s?.amount_ml).map(ml =>
     `<button type="button" class="chip" data-ml="${ml}">${ml} ml</button>`).join('');
+  $('#s-milk').innerHTML = milkButtons(milkOf(s) || lastMilk());
   renderTagChips($('#s-tags-how'), TAGS_HOW, s?.tags || []);
   renderTagChips($('#s-tags-baby'), TAGS_BABY, s?.tags || []);
   syncSessionSheet();
@@ -479,6 +515,11 @@ $('#s-ml-chips').addEventListener('click', ev => {
   if (!chip) return;
   $('#s-ml').value = $('#s-ml').value === chip.dataset.ml ? '' : chip.dataset.ml;
   syncSessionSheet();
+});
+$('#s-milk').addEventListener('click', ev => {
+  const btn = ev.target.closest('[data-milk]');
+  if (!btn) return;
+  $('#s-milk').querySelectorAll('[data-milk]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
 });
 for (const el of [$('#s-tags-how'), $('#s-tags-baby')]) {
   el.addEventListener('click', ev => {
@@ -510,8 +551,10 @@ $('#session-dialog').addEventListener('close', async () => {
     };
     const ml = Math.round(Number($('#s-ml').value)) || null;
     if (ml) safeSet(BOTTLE_KEY, String(ml));
-    const tags = [...document.querySelectorAll('#s-tags-how .chip, #s-tags-baby .chip')]
-      .filter(c => c.getAttribute('aria-pressed') === 'true').map(c => c.dataset.tag);
+    const milk = $('#s-milk [aria-pressed="true"]')?.dataset.milk || null;
+    if (ml && milk) safeSet(MILK_KEY, milk);
+    const tags = withMilk([...document.querySelectorAll('#s-tags-how .chip, #s-tags-baby .chip')]
+      .filter(c => c.getAttribute('aria-pressed') === 'true').map(c => c.dataset.tag), ml ? milk : null);
     const occurred_at = readTime($('#s-start'), s?.occurred_at);
     let ended_at = $('#s-end').value ? readTime($('#s-end'), s?.ended_at) : null;
     if (ended_at && ended_at < occurred_at) ended_at = occurred_at;
@@ -877,6 +920,10 @@ document.querySelectorAll('.timer').forEach(btn => {
 $('#session-bottle-chips').addEventListener('click', ev => {
   const chip = ev.target.closest('.chip');
   if (chip) setSessionBottle(chip.dataset.ml);
+});
+$('#session-milk').addEventListener('click', ev => {
+  const btn = ev.target.closest('[data-milk]');
+  if (btn) setSessionMilk(btn.dataset.milk);
 });
 $('#session-finish').addEventListener('click', () => {
   const s = activeSession();
