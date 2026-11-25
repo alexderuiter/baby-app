@@ -1,39 +1,26 @@
-// The "space" is the shared log a group of caregivers writes to.
-// v1: identified by a random code that travels in a ?space=CODE link.
-const KEY = 'babylog.space';
+// Small shared helpers: random codes and storage that never throws.
+// In "this device only" mode the log is keyed by a random local space id.
+// (Shared mode uses real spaces, caregivers and invite links: see cloud.js.)
+const LOCAL_KEY = 'babylog.space';
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alikes (0/o, 1/l/i)
 
-export function newSpaceCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(20));
-  return Array.from(bytes, b => ALPHABET[b % ALPHABET.length]).join('');
-}
-
-export function isValidSpaceCode(code) {
-  return typeof code === 'string' && /^[a-z0-9]{16,64}$/.test(code);
-}
-
-// Reads ?space= from the URL (joining via invite link), else localStorage.
-export function currentSpace() {
-  const url = new URL(location.href);
-  const fromUrl = url.searchParams.get('space');
-  if (isValidSpaceCode(fromUrl)) {
-    saveSpace(fromUrl);
-    url.searchParams.delete('space');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
-    return fromUrl;
+// 31 symbols, rejection-sampled so every symbol is equally likely.
+export function randomCode(length = 20) {
+  let out = '';
+  while (out.length < length) {
+    for (const b of crypto.getRandomValues(new Uint8Array(length * 2))) {
+      if (b < 248 && out.length < length) out += ALPHABET[b % ALPHABET.length];
+    }
   }
-  const stored = safeGet(KEY);
-  return isValidSpaceCode(stored) ? stored : null;
+  return out;
 }
 
-export function saveSpace(code) { safeSet(KEY, code); }
-
-export function inviteLink(code) {
-  const url = new URL(location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('space', code);
-  return url.toString();
+export function localSpaceId() {
+  const stored = safeGet(LOCAL_KEY);
+  if (stored && /^[a-z0-9]{16,64}$/.test(stored)) return stored;
+  const code = randomCode();
+  safeSet(LOCAL_KEY, code);
+  return code;
 }
 
 export function safeGet(key) {
@@ -41,4 +28,7 @@ export function safeGet(key) {
 }
 export function safeSet(key, value) {
   try { localStorage.setItem(key, value); } catch { /* private mode: ignore */ }
+}
+export function safeRemove(key) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
 }

@@ -23,6 +23,55 @@
     </button>
   </header>
 
+  <!-- Shared mode: sign in, then create or join a baby's log -->
+  <section id="gate" class="gate" hidden aria-live="polite">
+    <p id="gate-invite" class="gate-invite" hidden></p>
+
+    <form id="gate-signin" class="gate-card" hidden>
+      <h2>Inloggen</h2>
+      <p class="muted">We mailen je een link om in te loggen. Geen wachtwoord nodig.</p>
+      <label class="field">E-mailadres
+        <input type="email" id="signin-email" required autocomplete="email" inputmode="email" placeholder="jij@voorbeeld.nl">
+      </label>
+      <button class="primary">Stuur me een inloglink</button>
+    </form>
+
+    <form id="gate-code" class="gate-card" hidden>
+      <h2>Check je e-mail</h2>
+      <p class="muted">We hebben een inloglink gestuurd naar <b id="code-email"></b>. Tik erop op deze telefoon, of vul hier de code uit de e-mail in.</p>
+      <label class="field">Code
+        <input type="text" id="signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required placeholder="123456">
+      </label>
+      <button class="primary">Inloggen</button>
+      <button type="button" class="link-btn" id="code-back">Ander e-mailadres gebruiken</button>
+    </form>
+
+    <form id="gate-join" class="gate-card" hidden>
+      <h2 id="join-title">Meedoen met het logboek</h2>
+      <label class="field">Je naam
+        <input type="text" id="join-name" maxlength="40" required autocomplete="given-name" placeholder="bijv. Sam">
+        <small>Staat bij wat je invoert, zodat anderen zien wie het deed.</small>
+      </label>
+      <button class="primary">Meedoen</button>
+      <button type="button" class="link-btn" id="join-skip">Nu niet, ik maak mijn eigen logboek</button>
+    </form>
+
+    <form id="gate-create" class="gate-card" hidden>
+      <h2>Maak je logboek aan</h2>
+      <p class="muted">Daarna kun je meteen andere verzorgers uitnodigen.</p>
+      <label class="field">Naam van de baby
+        <input type="text" id="create-baby" maxlength="60" required placeholder="bijv. Mila">
+      </label>
+      <label class="field">Je naam
+        <input type="text" id="create-name" maxlength="40" required autocomplete="given-name" placeholder="bijv. Alex">
+      </label>
+      <button class="primary">Logboek aanmaken</button>
+      <p class="muted">Heb je een uitnodigingslink gekregen? Open die link om mee te doen met dat logboek.</p>
+    </form>
+
+    <p id="gate-error" class="gate-error" role="alert" hidden></p>
+  </section>
+
   <main>
     <div id="mode-banner" class="banner" hidden></div>
 
@@ -192,12 +241,21 @@
         <small>Na zoveel uur sinds het begin van de laatste voeding krijg je een seintje.</small>
       </label>
       <div id="share-block" class="share-block">
-        <h3>Share with other caregivers</h3>
-        <p class="muted">Anyone with this link can see and add to this log.</p>
-        <div class="copy-row">
-          <input type="text" id="invite-link" readonly>
-          <button type="button" id="copy-invite" class="secondary">Copy</button>
+        <h3 id="members-title">Verzorgers</h3>
+        <ul id="member-list" class="member-list"></ul>
+        <h3>Iemand uitnodigen</h3>
+        <p class="muted">Maakt een link die 7 dagen werkt. Wie hem opent, logt in met e-mail en doet mee met dit logboek.</p>
+        <button type="button" id="make-invite" class="secondary">Uitnodigingslink maken</button>
+        <div class="copy-row" id="invite-row" hidden>
+          <input type="text" id="invite-link" readonly aria-label="Uitnodigingslink">
+          <button type="button" id="copy-invite" class="secondary">Delen</button>
         </div>
+        <p class="muted" id="open-invites" hidden>
+          <span id="open-invites-text"></span>
+          <button type="button" class="link-btn" id="revoke-invites">Intrekken</button>
+        </p>
+        <p class="muted signed-in">Ingelogd als <span id="signed-in-as"></span>
+          <button type="button" class="link-btn" id="sign-out">Uitloggen</button></p>
       </div>
       <p id="local-note" class="muted" hidden>
         Dit logboek staat alleen op dit apparaat. Koppel Supabase om het tussen telefoons te delen (zie de README).

@@ -5,17 +5,18 @@
 //   remove(id) -> Promise<void>
 //   subscribe(onChange) -> unsubscribe()   onChange fires when another device/tab changed data
 //
-// Entry: { id, space_id, type: 'feed'|'diaper', kind, amount_ml, note, created_by, occurred_at, created_at }
+// Entry: { id, space_id, type: 'feed'|'diaper', kind, amount_ml, note,
+//          created_by (name), created_by_user (account id, shared mode), occurred_at, created_at }
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { safeGet, safeSet } from './space.js';
 
-const SUPABASE_JS = 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const LIMIT = 300;
 
 export const isShared = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-export async function openStore(spaceId) {
-  return isShared ? openSupabaseStore(spaceId) : openLocalStore(spaceId);
+// opts.userId: the signed-in caregiver (shared mode only).
+export async function openStore(spaceId, opts) {
+  return isShared ? openSupabaseStore(spaceId, opts) : openLocalStore(spaceId);
 }
 
 function sortNewestFirst(list) {
@@ -59,20 +60,19 @@ function openLocalStore(spaceId) {
 }
 
 // ---------- shared store (Supabase) ----------
-async function openSupabaseStore(spaceId) {
-  const { createClient } = await import(SUPABASE_JS);
-  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false },
-    global: { headers: { 'x-space-id': spaceId } },
-  });
+// Needs a signed-in caregiver of the space; row-level security does the access checks.
+async function openSupabaseStore(spaceId, { userId } = {}) {
+  const { getClient } = await import('./cloud.js');
+  const db = await getClient();
 
-  // Live updates: a broadcast channel per space. Whoever changes data pings it,
-  // everyone else refetches. (RLS on the table still guards the data itself.)
-  const channel = db.channel(`space-${spaceId}`, { config: { broadcast: { self: false } } });
+  // Live updates: Postgres changes on this space's entries (RLS-filtered by Supabase).
+  // Any change just triggers a refetch, which keeps ordering and edits simple.
   const listeners = new Set();
-  channel.on('broadcast', { event: 'changed' }, () => listeners.forEach(fn => fn()));
-  channel.subscribe();
-  const ping = () => channel.send({ type: 'broadcast', event: 'changed', payload: {} }).catch(() => {});
+  const channel = db.channel(`entries-${spaceId}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'entries', filter: `space_id=eq.${spaceId}` },
+      () => listeners.forEach(fn => fn()))
+    .subscribe();
 
   const check = ({ data, error }) => {
     if (error) throw new Error(error.message);
@@ -87,23 +87,23 @@ async function openSupabaseStore(spaceId) {
         .limit(LIMIT));
     },
     async add(entry) {
-      const row = check(await db.from('entries')
-        .insert({ ...entry, space_id: spaceId })
-        .select().single());
-      ping();
-      return row;
+      // The database stamps new rows with the signed-in account. When Undo restores
+      // someone else's entry, keep their name but don't claim their account.
+      const { created_by_user, id, created_at, ...rest } = entry;
+      const row = { ...rest, space_id: spaceId };
+      if (created_by_user && created_by_user !== userId) row.created_by_user = null;
+      return check(await db.from('entries').insert(row).select().single());
     },
     async update(id, patch) {
       check(await db.from('entries').update(patch).eq('id', id));
-      ping();
     },
     async remove(id) {
       check(await db.from('entries').delete().eq('id', id));
-      ping();
     },
     subscribe(onChange) {
       listeners.add(onChange);
       return () => listeners.delete(onChange);
     },
+    close() { db.removeChannel(channel); },
   };
 }

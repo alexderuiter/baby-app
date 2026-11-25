@@ -151,6 +151,28 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .share-block { display: grid; gap: 6px; }
 .copy-row { display: flex; gap: 8px; }
 
+/* sign-in / join / create screen (shared mode) */
+.gate { max-width: 460px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.gate-card {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 20px 16px; display: grid; gap: 14px;
+}
+.gate-card h2 { margin: 0; font-size: 1.25rem; }
+.gate-card .link-btn { justify-self: center; font-weight: 600; color: var(--muted); }
+.gate-invite { margin: 0; padding: 12px 16px; border-radius: 14px; background: var(--feed-soft); color: var(--feed); font-weight: 600; }
+.gate-error { margin: 0; color: var(--danger); text-align: center; }
+button:disabled { opacity: .6; cursor: default; }
+
+/* caregivers list in settings */
+.member-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+.member-list li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg); border-radius: 12px; }
+.member-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-list .role { color: var(--muted); font-size: .8rem; }
+.member-list .danger { padding: 4px 6px; font-size: .9rem; }
+.share-block h3 { margin-top: 6px; }
+.signed-in { margin-top: 8px; word-break: break-all; }
+.signed-in .link-btn { padding: 4px 6px; }
+
 /* ---------- feeding sessions ---------- */
 :root { --due: #b5731c; --due-soft: #fbecd6; }
 @media (prefers-color-scheme: dark) { :root { --due: #f0b66a; --due-soft: #3d2e1a; } }
