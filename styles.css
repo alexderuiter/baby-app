@@ -173,6 +173,9 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .gate-card .link-btn { justify-self: center; font-weight: 600; color: var(--muted); }
 .gate-invite { margin: 0; padding: 12px 16px; border-radius: 14px; background: var(--feed-soft); color: var(--feed); font-weight: 600; }
 .gate-error { margin: 0; color: var(--danger); text-align: center; }
+.gate-about { display: grid; gap: 6px; padding: 0 4px; }
+.gate-about p { margin: 0; line-height: 1.45; }
+.gate-about a { color: inherit; text-decoration: underline; }
 button:disabled { opacity: .6; cursor: default; }
 
 /* caregivers list in settings */

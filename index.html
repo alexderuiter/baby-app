@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Baby Log</title>
-  <meta name="description" content="Houd samen voedingen en luiers bij.">
+  <title>Baby Log – samen voedingen en luiers van je baby bijhouden</title>
+  <meta name="description" content="Baby Log is een gratis, persoonlijk logboek voor ouders en verzorgers om samen voedingen en luiers van hun baby bij te houden. Geen wachtwoord, geen betaalgegevens.">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#131417" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -45,13 +45,18 @@
   <section id="gate" class="gate" hidden aria-live="polite">
     <p id="gate-invite" class="gate-invite" hidden></p>
 
+    <div class="gate-about">
+      <p><b>Baby Log</b> is een persoonlijk logboek waarin ouders en verzorgers samen bijhouden wanneer de baby gevoed is en een schone luier kreeg.</p>
+      <p class="muted">Je hebt alleen je e-mailadres nodig om in te loggen. We vragen nooit om een wachtwoord, betaalgegevens of andere persoonsgegevens. <a href="privacy.html">Privacy en uitleg</a> · <a href="https://github.com/alexderuiter/baby-app" rel="noopener">Broncode</a></p>
+    </div>
+
     <form id="gate-signin" class="gate-card" hidden>
-      <h2>Inloggen</h2>
-      <p class="muted">We mailen je een link om in te loggen. Geen wachtwoord nodig.</p>
+      <h2>Inloggen bij Baby Log</h2>
+      <p class="muted">Vul je e-mailadres in. Je krijgt een e-mail met een inlogcode.</p>
       <label class="field">E-mailadres
         <input type="email" id="signin-email" required autocomplete="email" inputmode="email" placeholder="jij@voorbeeld.nl">
       </label>
-      <button class="primary">Stuur me een inloglink</button>
+      <button class="primary">Stuur me een code</button>
     </form>
 
     <form id="gate-code" class="gate-card" hidden>
