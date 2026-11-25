@@ -6,6 +6,7 @@ const NAME_KEY = 'babylog.name';
 const BOTTLE_KEY = 'babylog.lastBottle';
 const INTERVAL_KEY = 'babylog.intervalHours';
 const MILK_KEY = 'babylog.lastMilk';
+const BIRTH_KEY = 'babylog.birth';
 const MIN = 60000;
 const HOUR = 60 * MIN;
 
@@ -152,11 +153,71 @@ function setTime(input, iso) {
 
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// ---------- age ----------
+const DAY = 24 * HOUR;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const countFmt = new Intl.NumberFormat('nl-NL');
+
+// { date: 'YYYY-MM-DD', time: 'HH:MM' | null } or null when not set.
+function birth() {
+  if (isShared) return me?.space.birthDate ? { date: me.space.birthDate, time: me.space.birthTime } : null;
+  try {
+    const b = JSON.parse(safeGet(BIRTH_KEY) || 'null');
+    return b?.date ? b : null;
+  } catch { return null; }
+}
+
+// "12 dagen oud", "3 weken en 2 dagen oud · 23 dagen", "4 maanden en 5 dagen oud · 130 dagen".
+// Calendar based: the birth day is day 0, every midnight after it adds a day.
+export function ageText(b, now = new Date()) {
+  if (!b?.date) return null;
+  const [y, m, d] = b.date.split('-').map(Number);
+  const [hh, mm] = (b.time || '').split(':').map(Number);
+  const born = b.time ? new Date(y, m - 1, d, hh, mm) : new Date(y, m - 1, d);
+  if (born > now) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((today - new Date(y, m - 1, d)) / DAY);
+
+  if (b.time && now - born < 2 * DAY) {
+    const hours = Math.floor((now - born) / HOUR);
+    return hours < 1 ? 'Net geboren' : `${plural(hours, 'uur', 'uur')} oud`;
+  }
+  if (days === 0) return 'Vandaag geboren';
+  if (days < 14) return `${plural(days, 'dag', 'dagen')} oud`;
+
+  const total = `${countFmt.format(days)} dagen`;
+  const and = (a, b2) => (b2 ? `${a} en ${b2}` : a);
+  if (days < 91) {
+    const w = Math.floor(days / 7), r = days % 7;
+    return `${and(plural(w, 'week', 'weken'), r && plural(r, 'dag', 'dagen'))} oud · ${total}`;
+  }
+  // Whole calendar months, then the days since the last "month birthday".
+  let months = (today.getFullYear() - y) * 12 + today.getMonth() - (m - 1);
+  if (today.getDate() < d) months -= 1;
+  const monthDay = new Date(y, m - 1 + months, 1);
+  monthDay.setDate(Math.min(d, new Date(monthDay.getFullYear(), monthDay.getMonth() + 1, 0).getDate()));
+  const rest = Math.round((today - monthDay) / DAY);
+  if (months < 12) {
+    return `${and(plural(months, 'maand', 'maanden'), rest && plural(rest, 'dag', 'dagen'))} oud · ${total}`;
+  }
+  const years = Math.floor(months / 12), mo = months % 12;
+  return `${and(plural(years, 'jaar', 'jaar'), mo && plural(mo, 'maand', 'maanden'))} oud · ${total}`;
+}
+
+function renderAge() {
+  const text = ageText(birth());
+  const el = $('#baby-age');
+  el.textContent = text || 'Geboortedatum toevoegen';
+  el.classList.toggle('add', !text);
+  el.hidden = !store; // not before the log is open
+}
+
 // ---------- rendering ----------
 const activeSession = () => entries.find(isRunning);
 const lastFeed = () => entries.find(e => e.type === 'feed');
 
 function render() {
+  renderAge();
   renderStatus();
   renderActive();
   renderVitamins();
@@ -714,6 +775,10 @@ function openSettings(firstRun = false) {
   $('#settings-title').textContent = firstRun ? 'Welkom! Wie houdt het bij?' : 'Instellingen';
   $('#settings-name').value = myName() || '';
   $('#settings-interval').value = intervalHours();
+  const b = birth();
+  $('#settings-birth-date').value = b?.date || '';
+  $('#settings-birth-time').value = b?.time || '';
+  $('#settings-birth-date').max = localDate(new Date());
   $('#share-block').hidden = !isShared;
   $('#local-note').hidden = isShared;
   if (isShared) {
@@ -727,10 +792,44 @@ function openSettings(firstRun = false) {
   showSheet($('#settings-dialog'));
 }
 
+const localDate = d =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+async function saveBirth() {
+  let date = $('#settings-birth-date').value || null;
+  if (date && date > localDate(new Date())) date = null; // ignore a date in the future
+  const time = (date && $('#settings-birth-time').value) || null;
+  const old = birth();
+  if ((old?.date || null) === date && (old?.time || null) === time) return;
+  if (!isShared) {
+    if (date) safeSet(BIRTH_KEY, JSON.stringify({ date, time }));
+    else safeRemove(BIRTH_KEY);
+    return;
+  }
+  try {
+    await cloud.setBirth(me.space.id, date, time);
+    me.space.birthDate = date;
+    me.space.birthTime = time;
+  } catch (err) {
+    console.error(err);
+    toast(`Geboortedatum niet opgeslagen: ${err.message}`);
+  }
+}
+
+// Pick up changes another caregiver made to the log itself (like the birth date).
+async function refreshSpace() {
+  if (!isShared || !me) return;
+  try {
+    const fresh = (await cloud.mySpaces(me.user.id)).find(s => s.id === me.space.id);
+    if (fresh) { Object.assign(me.space, fresh); renderAge(); }
+  } catch (err) { console.warn(err); }
+}
+
 $('#settings-dialog').addEventListener('close', async () => {
   const hours = Number($('#settings-interval').value);
   if (hours >= 1 && hours <= 8) safeSet(INTERVAL_KEY, String(hours));
   const name = $('#settings-name').value.trim();
+  await saveBirth();
   if (!isShared) { safeSet(NAME_KEY, name); render(); return; }
   render();
   if (!name || name === me.space.myName) return;
@@ -989,7 +1088,7 @@ async function startShared() {
   cloud.onSignOut(() => location.reload());
   await loadMembers();
   hideGate();
-  $('.topbar h1').textContent = me.space.name;
+  $('#baby-name').textContent = me.space.name;
   return spaceId;
 }
 
@@ -1029,6 +1128,7 @@ for (const sel of ['#vit-today', '#vit-day', '#vit-banner']) {
   });
 }
 $('#settings-btn').addEventListener('click', () => openSettings());
+$('#baby-age').addEventListener('click', () => openSettings());
 $('#timeline').addEventListener('click', ev => {
   const btn = ev.target.closest('.entry');
   if (btn) openEntry(btn.dataset.id);
@@ -1066,7 +1166,7 @@ async function start() {
   setInterval(render, 30000);
   // Tick the breast timer every second while a session is running.
   setInterval(() => { if (activeSession() && !document.hidden) { renderActive(); renderStatus(); } }, 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { refresh(); refreshSpace(); } });
   addEventListener('online', refresh);
 
   if (!isShared && safeGet(NAME_KEY) === null) openSettings(true);

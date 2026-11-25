@@ -134,13 +134,30 @@ export async function countOpenInvites(spaceId) {
 // The spaces I'm a caregiver in, with my name and role there.
 export async function mySpaces(userId) {
   const db = await getClient();
-  const rows = check(await db.from('members')
-    .select('space_id, display_name, role, joined_at, spaces(name)')
+  const query = cols => db.from('members')
+    .select(`space_id, display_name, role, joined_at, spaces(${cols})`)
     .eq('user_id', userId)
-    .order('joined_at'));
-  return rows.map(r => ({
+    .order('joined_at');
+  let res = await query('name, birth_date, birth_time');
+  // Database not yet updated with migration 004 (no birth columns): carry on without them.
+  if (res.error && /birth_/.test(res.error.message)) res = await query('name');
+  return check(res).map(r => ({
     id: r.space_id, name: r.spaces?.name ?? '', myName: r.display_name, role: r.role,
+    birthDate: r.spaces?.birth_date ?? null, birthTime: r.spaces?.birth_time?.slice(0, 5) ?? null,
   }));
+}
+
+// Birth date 'YYYY-MM-DD' (or null to clear) and optional time 'HH:MM'. Any caregiver may set it.
+export async function setBirth(spaceId, birthDate, birthTime) {
+  const db = await getClient();
+  const { error } = await db.rpc('set_birth', {
+    space: spaceId, birth_date: birthDate || null, birth_time: (birthDate && birthTime) || null,
+  });
+  if (error) {
+    throw new Error(/set_birth|schema cache|function/i.test(error.message)
+      ? 'De database moet nog even bijgewerkt worden (migratie 004_birth.sql).'
+      : error.message);
+  }
 }
 
 export async function createSpace(babyName, myName) {
