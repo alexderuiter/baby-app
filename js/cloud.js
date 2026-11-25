@@ -4,7 +4,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { randomCode, safeGet, safeSet, safeRemove } from './space.js';
 
-const SUPABASE_JS = 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SUPABASE_JS = 'https://esm.sh/@supabase/supabase-js@2.118.0';
 const SPACE_KEY = 'babylog.cloudSpace';
 const INVITE_KEY = 'babylog.pendingInvite';
 
