@@ -304,6 +304,20 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; ma
 .day-bar .hour:first-of-type { transform: none; }
 .entry .time small { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
 
+/* ---------- milk type per bottle (moedermelk / kunstvoeding) ---------- */
+.seg {
+  display: grid; grid-template-columns: 1fr 1fr; padding: 3px; gap: 3px;
+  background: var(--surface-2); border-radius: 12px;
+}
+.seg button {
+  border: 0; background: transparent; border-radius: 9px; padding: 9px 8px;
+  font-weight: 600; font-size: .9rem; color: var(--muted);
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--feed); box-shadow: var(--shadow); }
+.stat.wide { grid-column: 1 / -1; padding: 8px 12px; }
+.stat.wide span { font-size: .85rem; }
+.stat.wide b { font-size: inherit; color: var(--text, inherit); }
+
 /* ---------- vitamin K and D drops ---------- */
 :root { --vit: #7d6aa8; --vit-soft: #f1eef8; }
 @media (prefers-color-scheme: dark) { :root { --vit: #bcaee0; --vit-soft: #262233; } }
