@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Baby Log</title>
   <meta name="description" content="Houd samen voedingen en luiers bij.">
-  <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#17181c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131417" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Baby Log">
@@ -16,10 +16,25 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Icons: based on Lucide (lucide.dev, ISC license), bundled inline so they work offline. -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-baby" viewBox="0 0 24 24"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-bottle" viewBox="0 0 24 24"><path d="M8 2h8"/><path d="M9 2v2.789a4 4 0 0 1-.672 2.219l-.656.984A4 4 0 0 0 7 10.212V20a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9.789a4 4 0 0 0-.672-2.219l-.656-.984A4 4 0 0 1 15 4.788V2"/><path d="M7 15a6.472 6.472 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/></symbol>
+    <symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
+    <symbol id="i-poop" viewBox="0 0 24 24"><path d="M5.5 20.5h13a2.5 2.5 0 0 0 0-5h-13a2.5 2.5 0 0 0 0 5Z"/><path d="M7.5 15.5a2.5 2.5 0 0 1 0-5h9a2.5 2.5 0 0 1 0 5"/><path d="M9.5 10.5a2.5 2.5 0 0 1 0-5h3c1.2 0 2-1.2 1.6-2.5 1.8.5 3.4 2 3.4 4 0 1.9-1.3 3.5-3 3.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  </svg>
   <header class="topbar">
-    <h1>Baby Log</h1>
+    <h1><span class="logo"><svg class="i" aria-hidden="true"><use href="#i-baby"/></svg></span>Baby Log</h1>
     <button id="settings-btn" class="icon-btn" aria-label="Instellingen">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
     </button>
   </header>
 
@@ -77,26 +92,26 @@
 
     <section class="status" aria-live="polite">
       <article class="status-card feed" id="feed-card">
-        <h2>Laatste voeding</h2>
+        <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-bottle"/></svg></span>Laatste voeding</h2>
         <p class="ago" id="last-feed-ago">–</p>
         <p class="detail" id="last-feed-detail">Nog niets gelogd</p>
         <p class="next" id="next-feed"></p>
       </article>
       <article class="status-card diaper">
-        <h2>Laatste luier</h2>
+        <h2><span class="badge"><svg class="i" aria-hidden="true"><use href="#i-droplet"/></svg></span>Laatste luier</h2>
         <p class="ago" id="last-diaper-ago">–</p>
         <p class="detail" id="last-diaper-detail">Nog niets gelogd</p>
       </article>
     </section>
-    <div id="due-banner" class="due-banner" role="status" hidden></div>
+    <div id="due-banner" class="due-banner" role="status" hidden><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg><span id="due-text"></span></div>
 
     <section class="actions" aria-label="Iets loggen">
       <h2 class="section-title">Voeding</h2>
       <div id="feed-idle">
         <button class="big-btn feed wide" id="start-feed">
-          <span class="emoji" aria-hidden="true">🍼</span><span>Voeding starten</span>
+          <svg class="i lg" aria-hidden="true"><use href="#i-bottle"/></svg><span>Voeding starten</span>
         </button>
-        <button class="link-btn subtle" id="add-past-feed">Eerdere voeding invoeren</button>
+        <button class="link-btn subtle" id="add-past-feed"><svg class="i" aria-hidden="true"><use href="#i-history"/></svg>Eerdere voeding invoeren</button>
       </div>
 
       <div id="feed-active" class="session-card" hidden>
@@ -111,16 +126,16 @@
           <button class="big-btn feed timer" data-side="left">
             <span class="side">Links</span>
             <span class="clock" id="clock-left">0:00</span>
-            <span class="state" id="state-left">▶ Start</span>
+            <span class="state" id="state-left"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg>Start</span>
           </button>
           <button class="big-btn feed timer" data-side="right">
             <span class="side">Rechts</span>
             <span class="clock" id="clock-right">0:00</span>
-            <span class="state" id="state-right">▶ Start</span>
+            <span class="state" id="state-right"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg>Start</span>
           </button>
         </div>
         <div class="bottle-row">
-          <span>🍼 Fles</span>
+          <span class="row-label"><svg class="i" aria-hidden="true"><use href="#i-bottle"/></svg>Fles</span>
           <div class="chips" id="session-bottle-chips"></div>
         </div>
         <div class="session-actions">
@@ -132,22 +147,22 @@
       <h2 class="section-title">Luier</h2>
       <div class="btn-row">
         <button class="big-btn diaper" data-type="diaper" data-kind="wet">
-          <span class="emoji" aria-hidden="true">💧</span><span>Nat</span>
+          <svg class="i lg" aria-hidden="true"><use href="#i-droplet"/></svg><span>Nat</span>
         </button>
         <button class="big-btn diaper" data-type="diaper" data-kind="dirty">
-          <span class="emoji" aria-hidden="true">💩</span><span>Poep</span>
+          <svg class="i lg" aria-hidden="true"><use href="#i-poop"/></svg><span>Poep</span>
         </button>
         <button class="big-btn diaper" data-type="diaper" data-kind="both">
-          <span class="emoji" aria-hidden="true">💧💩</span><span>Beide</span>
+          <span class="pair"><svg class="i lg" aria-hidden="true"><use href="#i-droplet"/></svg><svg class="i lg" aria-hidden="true"><use href="#i-poop"/></svg></span><span>Beide</span>
         </button>
       </div>
     </section>
 
     <section class="day" aria-label="Dagoverzicht">
       <div class="day-head">
-        <button class="icon-btn small" id="day-prev" aria-label="Vorige dag">‹</button>
+        <button class="icon-btn small" id="day-prev" aria-label="Vorige dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
         <h2 id="day-title">Vandaag</h2>
-        <button class="icon-btn small" id="day-next" aria-label="Volgende dag">›</button>
+        <button class="icon-btn small" id="day-next" aria-label="Volgende dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
       </div>
       <div class="day-stats" id="day-stats"></div>
       <div class="day-bar" id="day-bar" aria-hidden="true"></div>
