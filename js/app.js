@@ -86,6 +86,9 @@ function sideSeconds(e, side) {
   return sec;
 }
 
+// Inline SVG icon from the sprite in index.html.
+const icon = name => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
 function describe(e) {
   if (isSession(e)) {
     const parts = [];
@@ -163,7 +166,7 @@ function renderStatus() {
   card.classList.toggle('due', Boolean(due));
   $('#due-banner').hidden = !due;
   if (due) {
-    $('#due-banner').textContent =
+    $('#due-text').textContent =
       `De laatste voeding begon ${duration(Date.now() - new Date(feed.occurred_at))} geleden. Misschien tijd voor een voeding, als de baby eraan toe is.`;
   }
 
@@ -186,7 +189,11 @@ function renderActive() {
   for (const side of ['left', 'right']) {
     const on = s.timer_side === side;
     $(`#clock-${side}`).textContent = clock(sideSeconds(s, side));
-    $(`#state-${side}`).textContent = on ? '⏸ Pauze' : '▶ Start';
+    const stateEl = $(`#state-${side}`);
+    if (stateEl.dataset.on !== String(on)) {
+      stateEl.dataset.on = String(on);
+      stateEl.innerHTML = on ? `${icon('pause')}Pauze` : `${icon('play')}Start`;
+    }
     document.querySelector(`.timer[data-side="${side}"]`).classList.toggle('running', on);
   }
   const chips = $('#session-bottle-chips');
@@ -268,7 +275,7 @@ function renderDay() {
     ].filter(Boolean).join(' · ');
     return `<li><button class="entry ${e.type}" data-id="${escapeHtml(e.id)}">
       <span class="time">${time}</span>
-      <span class="dot" aria-hidden="true"></span>
+      <span class="dot">${icon(e.type === 'feed' ? 'bottle' : e.kind === 'wet' ? 'droplet' : 'poop')}</span>
       <span class="what">${escapeHtml(describe(e))}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
       <span class="gap" title="Sinds vorige ${e.type === 'feed' ? 'voeding' : 'luier'}">${gap}</span>
     </button></li>`;
