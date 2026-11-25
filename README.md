@@ -28,7 +28,7 @@ Without Supabase settings it stores everything in the browser's localStorage.
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run [`supabase/schema.sql`](supabase/schema.sql). It is complete for a new project; the files in
    `supabase/migrations/` are only for projects set up with an earlier version (running them again is harmless).
-3. In **Project settings → API**, copy the project URL and the `anon` public key into [`js/config.js`](js/config.js).
+3. In **Project settings → API**, copy the project URL and the publishable key (`sb_publishable_…`, or the older `anon` public key) into [`js/config.js`](js/config.js).
 4. Host the folder anywhere static over HTTPS (GitHub Pages works: Settings → Pages → deploy from branch).
 5. In **Authentication → URL Configuration**, set the **Site URL** to where the app is hosted and add
    `https://<your-site>/**` under **Redirect URLs**, so sign-in links come back to the app.
