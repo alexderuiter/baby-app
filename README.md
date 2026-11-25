@@ -26,18 +26,33 @@ Without Supabase settings it stores everything in the browser's localStorage.
 2. In the SQL editor, run [`supabase/schema.sql`](supabase/schema.sql).
 3. In **Project settings → API**, copy the project URL and the `anon` public key into [`js/config.js`](js/config.js).
 4. Host the folder anywhere static over HTTPS (GitHub Pages works: Settings → Pages → deploy from branch).
-5. Open the app, tap the gear, and send the invite link to the other caregivers. Opening it joins the same log.
+5. In **Authentication → URL Configuration**, set the **Site URL** to where the app is hosted and add
+   `https://<your-site>/**` under **Redirect URLs**, so sign-in links come back to the app.
+6. In **Authentication → Email Templates → Magic Link**, add the code to the email, for example
+   `<p>Or enter this code in the app: <b>{{ .Token }}</b></p>`. On a phone where the app is installed
+   on the home screen, the email link opens the browser instead of the app, so the code is the easy way in there.
+7. Open the app, sign in with your email, and set up your baby's log. Then open the gear and tap
+   **Create invite link** to send to the other caregivers.
 
-### How sharing works (v1)
+Supabase's built-in email sender is limited to a few emails per hour, which is fine for a family.
+For more, connect your own SMTP under **Authentication → Emails**.
 
-Each log ("space") has a long random code. The invite link carries it as `?space=…`; the app then keeps it in
-localStorage and sends it as an `x-space-id` header. Row-level security only returns rows whose `space_id`
-matches that header, so the code works like a secret share link. Live updates use a Supabase Realtime broadcast
-channel per space: whoever changes something pings it, and the other phones reload the list. The list also reloads
-whenever the app comes back to the foreground.
+### How sharing works
 
-This is a placeholder until proper sign-in and invites land: anyone with the link has full access, and there's no
-way to revoke it other than starting a new space.
+- **Sign-in**: email only, no passwords. Supabase emails a link and a 6-digit code.
+- **Space**: one baby's log. Whoever sets it up is its owner; the people they invite are caregivers.
+  Each caregiver picks the name that is shown next to what they log.
+- **Invite links**: any caregiver can make one in settings. A link works for 7 days and can be used by
+  whoever it's sent to; open ones can be cancelled from settings. Opening it shows who invited you, then
+  asks you to sign in and enter your name.
+- **Who logged it**: every entry stores the account that logged it and the name at that moment.
+  The timeline shows the caregiver's current name ("by Sam").
+- **Access**: row-level security only lets caregivers of a space read or change its entries. The owner can
+  remove a caregiver in settings, and caregivers can leave. Removing someone takes away their access right away.
+- **Live updates**: the app listens to Postgres changes on the space's entries (Supabase Realtime) and also
+  reloads when it comes back to the foreground.
+
+Without Supabase settings the app keeps working as before, on this device only, without sign-in.
 
 ## Install on a phone
 
@@ -51,7 +66,8 @@ way to revoke it other than starting a new space.
 | `index.html`, `styles.css` | UI (light and dark mode) |
 | `js/app.js` | Rendering, buttons, sheets |
 | `js/store.js` | Data access: local and Supabase backends behind one interface |
-| `js/space.js` | Space code, invite links |
+| `js/cloud.js` | Sign-in, spaces, caregivers and invite links (Supabase) |
+| `js/space.js` | Random codes, local space id, safe localStorage |
 | `js/config.js` | Supabase URL and anon key |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Installable PWA + offline app shell |
-| `supabase/schema.sql` | Table and row-level security |
+| `supabase/schema.sql` | Tables, invite functions and row-level security |

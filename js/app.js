@@ -1,5 +1,5 @@
 import { openStore, isShared } from './store.js';
-import { currentSpace, newSpaceCode, saveSpace, inviteLink, safeGet, safeSet } from './space.js';
+import { localSpaceId, safeGet, safeSet, safeRemove } from './space.js';
 
 const $ = sel => document.querySelector(sel);
 const NAME_KEY = 'babylog.name';
@@ -12,6 +12,18 @@ const LABELS = {
 let store;
 let entries = [];
 let undoTimer;
+let cloud;            // js/cloud.js, loaded in shared mode only
+let me = null;        // shared mode: { user, space: { id, name, myName, role }, spaces: [...] }
+let members = new Map(); // user_id -> { display_name, role }
+let membersLoadedAt = 0;
+
+// Your name: per space in shared mode, per device in local mode.
+const myName = () => (me ? me.space.myName : safeGet(NAME_KEY)) || null;
+
+// Who logged an entry: their current name if they're still a caregiver, else the name saved with it.
+function nameFor(e) {
+  return members.get(e.created_by_user)?.display_name || e.created_by || '';
+}
 
 // ---------- formatting ----------
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -111,7 +123,8 @@ function renderTimeline() {
     const prev = entries.slice(i + 1).find(p => p.type === e.type);
     const gapMs = prev ? when - new Date(prev.occurred_at) : 0;
     const gap = gapMs >= 60000 ? `+${duration(gapMs)}` : '';
-    const sub = [e.created_by ? `by ${e.created_by}` : '', e.note].filter(Boolean).join(' · ');
+    const who = nameFor(e);
+    const sub = [who ? `by ${who}` : '', e.note].filter(Boolean).join(' · ');
     html += `<li><button class="entry ${e.type}" data-id="${escapeHtml(e.id)}">
       <span class="time">${timeFmt.format(when)}</span>
       <span class="dot" aria-hidden="true"></span>
@@ -143,7 +156,12 @@ function toast(text, onUndo) {
 async function refresh() {
   try {
     entries = await store.list();
-    if (isShared) banner('');
+    if (isShared) {
+      banner('');
+      // Someone new joined and logged something: fetch the caregiver list again.
+      const unknown = entries.some(e => e.created_by_user && !members.has(e.created_by_user));
+      if (unknown && Date.now() - membersLoadedAt > 30000) await loadMembers();
+    }
     render();
   } catch (err) {
     console.error(err);
@@ -157,7 +175,7 @@ async function log(entry, sourceBtn) {
   sourceBtn?.classList.add('flash');
   navigator.vibrate?.(15);
   try {
-    const row = await store.add({ created_by: safeGet(NAME_KEY) || null, ...entry });
+    const row = await store.add({ created_by: myName(), ...entry });
     entries = [row, ...entries].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
     render();
     toast(`Logged: ${describe(row)}`, async () => {
@@ -251,24 +269,278 @@ $('#edit-dialog').addEventListener('close', async () => {
 // ---------- settings sheet ----------
 function openSettings(firstRun = false) {
   $('#settings-title').textContent = firstRun ? 'Welcome! Who is logging?' : 'Settings';
-  $('#settings-name').value = safeGet(NAME_KEY) || '';
+  $('#settings-name').value = myName() || '';
   $('#share-block').hidden = !isShared;
   $('#local-note').hidden = isShared;
-  $('#invite-link').value = inviteLink(store.spaceId);
+  if (isShared) {
+    $('#invite-row').hidden = true;
+    $('#make-invite').hidden = false;
+    $('#signed-in-as').textContent = me.user.email || 'you';
+    renderMembers();
+    loadMembers().then(renderMembers).catch(console.error);
+    showOpenInvites();
+  }
   $('#settings-dialog').showModal();
 }
-$('#settings-dialog').addEventListener('close', () => {
-  safeSet(NAME_KEY, $('#settings-name').value.trim());
+
+$('#settings-dialog').addEventListener('close', async () => {
+  const name = $('#settings-name').value.trim();
+  if (!isShared) { safeSet(NAME_KEY, name); render(); return; }
+  if (!name || name === me.space.myName) return;
+  try {
+    await cloud.renameMe(me.space.id, me.user.id, name);
+    me.space.myName = name;
+    members.set(me.user.id, { ...members.get(me.user.id), display_name: name });
+    render();
+  } catch (err) {
+    console.error(err);
+    toast(`Name not saved: ${err.message}`);
+  }
 });
+
+// ---------- caregivers and invites (shared mode) ----------
+async function loadMembers() {
+  const rows = await cloud.listMembers(me.space.id);
+  membersLoadedAt = Date.now();
+  members = new Map(rows.map(r => [r.user_id, r]));
+  if (!members.has(me.user.id)) {
+    // Removed from this log by its owner: start over (join or create another one).
+    cloud.saveSpaceId('');
+    location.reload();
+  }
+}
+
+function renderMembers() {
+  $('#members-title').textContent = `Caregivers of ${me.space.name}`;
+  const iAmOwner = me.space.role === 'owner';
+  $('#member-list').innerHTML = [...members.values()].map(m => {
+    const isMe = m.user_id === me.user.id;
+    const canRemove = m.role !== 'owner' && (isMe || iAmOwner);
+    return `<li>
+      <span class="who">${escapeHtml(m.display_name)}${isMe ? ' (you)' : ''}</span>
+      ${m.role === 'owner' ? '<span class="role">owner</span>' : ''}
+      ${canRemove ? `<button type="button" class="danger" data-remove="${escapeHtml(m.user_id)}">${isMe ? 'Leave' : 'Remove'}</button>` : ''}
+    </li>`;
+  }).join('');
+}
+
+// Removing someone takes two taps (no browser confirm dialogs).
+$('#member-list').addEventListener('click', async ev => {
+  const btn = ev.target.closest('[data-remove]');
+  if (!btn) return;
+  if (!btn.dataset.armed) {
+    btn.dataset.armed = '1';
+    btn.textContent = 'Tap again to confirm';
+    return;
+  }
+  const userId = btn.dataset.remove;
+  btn.disabled = true;
+  try {
+    await cloud.removeMember(me.space.id, userId);
+    if (userId === me.user.id) { cloud.saveSpaceId(''); location.reload(); return; }
+    await loadMembers();
+    renderMembers();
+  } catch (err) {
+    console.error(err);
+    toast(err.message);
+    btn.disabled = false;
+  }
+});
+
+async function showOpenInvites() {
+  try {
+    const n = await cloud.countOpenInvites(me.space.id);
+    $('#open-invites').hidden = n === 0;
+    $('#open-invites-text').textContent = n === 1 ? '1 invite link is still open.' : `${n} invite links are still open.`;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+$('#make-invite').addEventListener('click', async () => {
+  const btn = $('#make-invite');
+  btn.disabled = true;
+  try {
+    $('#invite-link').value = await cloud.createInvite(me.space.id);
+    $('#invite-row').hidden = false;
+    btn.hidden = true;
+    $('#copy-invite').textContent = navigator.share ? 'Share' : 'Copy';
+    showOpenInvites();
+  } catch (err) {
+    console.error(err);
+    toast(`Couldn't create a link: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 $('#copy-invite').addEventListener('click', async () => {
   const link = $('#invite-link').value;
   try {
-    if (navigator.share) await navigator.share({ title: 'Baby Log', text: 'Join our baby log', url: link });
+    if (navigator.share) await navigator.share({ title: 'Baby Log', text: `Join the baby log for ${me.space.name}`, url: link });
     else { await navigator.clipboard.writeText(link); $('#copy-invite').textContent = 'Copied'; }
   } catch {
     $('#invite-link').select();
   }
 });
+
+$('#revoke-invites').addEventListener('click', async () => {
+  try {
+    await cloud.revokeOpenInvites(me.space.id);
+    $('#invite-row').hidden = true;
+    $('#make-invite').hidden = false;
+    await showOpenInvites();
+    toast('Open invite links cancelled');
+  } catch (err) {
+    console.error(err);
+    toast(err.message);
+  }
+});
+
+$('#sign-out').addEventListener('click', async () => {
+  await cloud.signOut().catch(console.error);
+  location.reload();
+});
+
+// ---------- sign-in / join / create (shared mode) ----------
+const EMAIL_KEY = 'babylog.signinEmail';
+const GATE_PANELS = ['#gate-signin', '#gate-code', '#gate-join', '#gate-create'];
+
+function showGate(panel) {
+  $('#gate').hidden = false;
+  document.querySelector('main').hidden = true;
+  $('#settings-btn').hidden = true;
+  GATE_PANELS.forEach(p => { $(p).hidden = p !== panel; });
+  gateError('');
+  $(panel)?.querySelector('input')?.focus();
+}
+function hideGate() {
+  $('#gate').hidden = true;
+  document.querySelector('main').hidden = false;
+  $('#settings-btn').hidden = false;
+}
+function gateError(text) {
+  $('#gate-error').textContent = text || '';
+  $('#gate-error').hidden = !text;
+}
+
+// Shows a panel and runs handler on submit, with the button disabled while it works.
+function onSubmit(panel, handler) {
+  const form = $(panel);
+  showGate(panel);
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = form.querySelector('button.primary');
+    btn.disabled = true;
+    gateError('');
+    try { await handler(); } catch (err) { console.error(err); gateError(err.message); } finally { btn.disabled = false; }
+  };
+}
+
+async function signInGate() {
+  let done;
+  const signedIn = new Promise(resolve => { done = resolve; });
+  // Magic link opened in another tab of this browser: pick up the session when we're back.
+  const unsubscribe = await cloud.onSignIn(done);
+  const recheck = async () => { if (!document.hidden) { const u = await cloud.currentUser(); if (u) done(u); } };
+  document.addEventListener('visibilitychange', recheck);
+
+  const askEmail = () => onSubmit('#gate-signin', async () => {
+    const email = $('#signin-email').value.trim();
+    await cloud.sendSignInEmail(email);
+    safeSet(EMAIL_KEY, email);
+    askCode(email);
+  });
+  // The code is what works inside an installed app, where the email link opens the browser instead.
+  const askCode = email => {
+    $('#code-email').textContent = email;
+    $('#signin-code').value = '';
+    onSubmit('#gate-code', async () => done(await cloud.verifyCode(email, $('#signin-code').value.trim())));
+  };
+  $('#code-back').onclick = () => { safeRemove(EMAIL_KEY); askEmail(); };
+
+  const sentTo = safeGet(EMAIL_KEY);
+  if (sentTo) { $('#signin-email').value = sentTo; askCode(sentTo); } else askEmail();
+
+  const user = await signedIn;
+  unsubscribe();
+  document.removeEventListener('visibilitychange', recheck);
+  safeRemove(EMAIL_KEY);
+  return user;
+}
+
+// Shows who invited you on every gate screen.
+async function describeInvite(token) {
+  const info = await cloud.previewInvite(token).catch(() => null);
+  const el = $('#gate-invite');
+  if (!info) { el.hidden = true; return null; }
+  el.textContent = info.usable
+    ? `${info.invited_by || 'Someone'} invited you to the baby log for ${info.space_name}.`
+    : `This invite to the log for ${info.space_name} has expired. Ask ${info.invited_by || 'them'} for a new link.`;
+  el.hidden = false;
+  return info;
+}
+
+// Resolves with the joined space id, or null to carry on without joining.
+async function joinGate(token, spaces) {
+  const info = await describeInvite(token);
+  const finish = id => { cloud.clearPendingInvite(); $('#gate-invite').hidden = true; return id; };
+  if (!info) { finish(null); gateError('That invite link is not valid. Ask for a new one.'); return null; }
+  // Already in it: just open it.
+  if (spaces.some(s => s.id === info.space_id)) return finish(info.space_id);
+  if (!info.usable) { finish(null); return null; }
+
+  return new Promise(resolve => {
+    $('#join-title').textContent = `Join the log for ${info.space_name}`;
+    $('#join-name').value = spaces[0]?.myName || safeGet(NAME_KEY) || '';
+    $('#join-skip').onclick = () => resolve(finish(null));
+    onSubmit('#gate-join', async () => {
+      const name = $('#join-name').value.trim();
+      const id = await cloud.acceptInvite(token, name);
+      safeSet(NAME_KEY, name);
+      resolve(finish(id));
+    });
+  });
+}
+
+function createGate() {
+  return new Promise(resolve => {
+    $('#create-name').value = safeGet(NAME_KEY) || '';
+    onSubmit('#gate-create', async () => {
+      const name = $('#create-name').value.trim();
+      const id = await cloud.createSpace($('#create-baby').value.trim(), name);
+      safeSet(NAME_KEY, name);
+      resolve(id);
+    });
+  });
+}
+
+// Signs in, then picks (or joins, or creates) the space. Returns its id.
+async function startShared() {
+  cloud = await import('./cloud.js');
+  cloud.takeInviteFromUrl();
+  const token = cloud.pendingInvite();
+  if (token) describeInvite(token);
+
+  const user = (await cloud.currentUser()) || (await signInGate());
+  let spaces = await cloud.mySpaces(user.id);
+
+  let spaceId = token ? await joinGate(token, spaces) : null;
+  if (!spaceId) {
+    const saved = cloud.savedSpaceId();
+    spaceId = (spaces.find(s => s.id === saved) || spaces[0])?.id;
+  }
+  if (!spaceId) spaceId = await createGate();
+  if (!spaces.some(s => s.id === spaceId)) spaces = await cloud.mySpaces(user.id);
+
+  cloud.saveSpaceId(spaceId);
+  me = { user, spaces, space: spaces.find(s => s.id === spaceId) };
+  cloud.onSignOut(() => location.reload());
+  await loadMembers();
+  hideGate();
+  $('.topbar h1').textContent = me.space.name;
+  return spaceId;
+}
 
 // ---------- wiring ----------
 document.querySelectorAll('.big-btn[data-type]').forEach(btn => {
@@ -282,18 +554,28 @@ $('#timeline').addEventListener('click', ev => {
 });
 
 async function start() {
-  let spaceId = currentSpace();
-  if (!spaceId) { spaceId = newSpaceCode(); saveSpace(spaceId); }
+  let spaceId;
+  if (isShared) {
+    try {
+      spaceId = await startShared();
+    } catch (err) {
+      console.error(err);
+      showGate(null);
+      gateError(`Couldn't connect (${err.message}). Check your connection and reopen the app.`);
+      return;
+    }
+  } else {
+    spaceId = localSpaceId();
+    banner('Saved on this device only. Connect Supabase to share with others.');
+  }
 
-  if (!isShared) banner('Saved on this device only. Connect Supabase to share with others.');
   try {
-    store = await openStore(spaceId);
+    store = await openStore(spaceId, { userId: me?.user.id });
   } catch (err) {
     console.error(err);
     banner(`Couldn't connect to the shared log (${err.message}).`, true);
     return;
   }
-  store.spaceId = spaceId;
   store.subscribe(refresh);
   await refresh();
 
@@ -302,7 +584,7 @@ async function start() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   addEventListener('online', refresh);
 
-  if (safeGet(NAME_KEY) === null) openSettings(true);
+  if (!isShared && safeGet(NAME_KEY) === null) openSettings(true);
 }
 
 start();
