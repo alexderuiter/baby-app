@@ -1,11 +1,12 @@
 // Data access. Both backends share one interface:
-//   list() -> Promise<Entry[]> (newest first)
+//   list() -> Promise<Entry[]> (newest first, the most recent LIMIT entries)
+//   listWeights() -> Promise<Entry[]> (every weighing, newest first; they are rare, so all of them)
 //   add(entry) -> Promise<Entry>
 //   update(id, patch) -> Promise<void>
 //   remove(id) -> Promise<void>
 //   subscribe(onChange) -> unsubscribe()   onChange fires when another device/tab changed data
 //
-// Entry: { id, space_id, type: 'feed'|'diaper', kind, amount_ml, note,
+// Entry: { id, space_id, type: 'feed'|'diaper'|'vitamin'|'weight', kind, amount_ml, weight_g, note,
 //          created_by (name), created_by_user (account id, shared mode), occurred_at, created_at }
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { safeGet, safeSet } from './space.js';
@@ -29,10 +30,16 @@ function openLocalStore(spaceId) {
   const read = () => {
     try { return JSON.parse(safeGet(key) || '[]'); } catch { return []; }
   };
-  const write = list => safeSet(key, JSON.stringify(sortNewestFirst(list).slice(0, 2000)));
+  // Keep the newest 2000 entries, plus every weighing (those matter for the long-term trend).
+  const write = list => {
+    const sorted = sortNewestFirst(list);
+    const recent = new Set(sorted.slice(0, 2000));
+    safeSet(key, JSON.stringify(sorted.filter(e => recent.has(e) || e.type === 'weight')));
+  };
 
   return {
     async list() { return sortNewestFirst(read()).slice(0, LIMIT); },
+    async listWeights() { return sortNewestFirst(read().filter(e => e.type === 'weight')); },
     async add(entry) {
       const row = {
         id: crypto.randomUUID(),
@@ -85,6 +92,13 @@ async function openSupabaseStore(spaceId, { userId } = {}) {
         .eq('space_id', spaceId)
         .order('occurred_at', { ascending: false })
         .limit(LIMIT));
+    },
+    async listWeights() {
+      return check(await db.from('entries').select('*')
+        .eq('space_id', spaceId)
+        .eq('type', 'weight')
+        .order('occurred_at', { ascending: false })
+        .limit(1000));
     },
     async add(entry) {
       // The database stamps new rows with the signed-in account. When Undo restores

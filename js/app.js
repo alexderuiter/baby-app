@@ -48,6 +48,7 @@ const VIT_REMIND_HOUR = 18; // from this hour on, remind if one isn't ticked off
 
 let store;
 let entries = [];
+let weights = [];     // every weighing, newest first (loaded separately: they are rare but needed in full)
 let undoTimer;
 let cloud;            // js/cloud.js, loaded in shared mode only
 let me = null;        // shared mode: { user, space: { id, name, myName, role }, spaces: [...] }
@@ -91,6 +92,7 @@ function intervalHours() {
 }
 
 const isVitamin = e => e.type === 'vitamin';
+const isWeight = e => e.type === 'weight';
 const isSession = e => e.type === 'feed' && e.kind === 'session';
 const isRunning = e => isSession(e) && !e.ended_at;
 
@@ -107,6 +109,7 @@ function sideSeconds(e, side) {
 const icon = name => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
 function describe(e) {
+  if (isWeight(e)) return `Gewicht · ${grams(e.weight_g)}`;
   if (isSession(e)) {
     const parts = [];
     const l = minutes(sideSeconds(e, 'left'));
@@ -221,6 +224,7 @@ function render() {
   renderStatus();
   renderActive();
   renderVitamins();
+  renderWeight();
   renderDay();
 }
 
@@ -400,7 +404,7 @@ function renderDay() {
     : mlFormula && !mlBreast && mlFormula === ml ? 'ml kunstvoeding' : 'ml fles';
   const mlSplit = mlBreast && mlFormula
     ? `<div class="stat wide"><span>Fles: <b>${mlBreast} ml</b> moedermelk · <b>${mlFormula} ml</b> kunstvoeding</span></div>` : '';
-  $('#day-stats').innerHTML = list.length ? [
+  $('#day-stats').innerHTML = list.some(e => !isWeight(e)) ? [
     stat(feeds.length, feeds.length === 1 ? 'voeding' : 'voedingen'),
     stat(`${leftMin}<small>/</small>${rightMin}`, 'min links/rechts'),
     stat(ml, mlLabel),
@@ -419,22 +423,24 @@ function renderDay() {
       const end = e.ended_at || (isRunning(e) ? now.toISOString() : new Date(new Date(e.occurred_at).getTime() + 15 * MIN).toISOString());
       const left = pct(e.occurred_at);
       bar += `<span class="blk" style="left:${left}%;width:${Math.max(0.8, pct(end) - left)}%"></span>`;
-    } else {
+    } else if (e.type === 'diaper') {
       bar += `<span class="tick ${e.kind}" style="left:${pct(e.occurred_at)}%"></span>`;
     }
   }
   if (dayOffset === 0) bar += `<span class="now" style="left:${pct(now)}%"></span>`;
   bar += ['0', '6', '12', '18'].map(h => `<span class="hour" style="left:${(h / 24) * 100}%">${h}</span>`).join('');
-  $('#day-bar').innerHTML = list.length ? bar : '';
-  $('#day-bar').hidden = !list.length;
+  const barred = list.some(e => !isWeight(e));
+  $('#day-bar').innerHTML = barred ? bar : '';
+  $('#day-bar').hidden = !barred;
 
   // List
   $('#timeline-empty').hidden = list.length > 0;
   $('#timeline').innerHTML = list.map(e => {
-    const allFeeds = entries.filter(x => x.type === e.type);
-    const prev = allFeeds[allFeeds.indexOf(e) + 1];
+    const same = isWeight(e) ? weights : entries.filter(x => x.type === e.type);
+    const prev = same[same.findIndex(x => x.id === e.id) + 1];
     const gapMs = prev ? new Date(e.occurred_at) - new Date(prev.occurred_at) : 0;
-    const gap = gapMs >= MIN ? `+${duration(gapMs)}` : '';
+    const gap = isWeight(e) ? (prev ? signedGrams(e.weight_g - prev.weight_g) : '')
+      : gapMs >= MIN ? `+${duration(gapMs)}` : '';
     const time = isSession(e) && e.ended_at
       ? `${fmtTime(e.occurred_at)}<small>${fmtTime(e.ended_at)}</small>`
       : fmtTime(e.occurred_at);
@@ -447,9 +453,9 @@ function renderDay() {
     ].filter(Boolean).join(' · ');
     return `<li><button class="entry ${e.type}" data-id="${escapeHtml(e.id)}">
       <span class="time">${time}</span>
-      <span class="dot">${icon(e.type === 'feed' ? 'bottle' : e.kind === 'wet' ? 'droplet' : 'poop')}</span>
+      <span class="dot">${icon(e.type === 'feed' ? 'bottle' : isWeight(e) ? 'weight' : e.kind === 'wet' ? 'droplet' : 'poop')}</span>
       <span class="what">${escapeHtml(describe(e))}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
-      <span class="gap" title="Sinds vorige ${e.type === 'feed' ? 'voeding' : 'luier'}">${gap}</span>
+      <span class="gap" title="Sinds vorige ${e.type === 'feed' ? 'voeding' : isWeight(e) ? 'weging' : 'luier'}">${gap}</span>
     </button></li>`;
   }).join('');
 }
@@ -474,7 +480,7 @@ function toast(text, onUndo) {
 // ---------- data ----------
 async function refresh() {
   try {
-    entries = await store.list();
+    [entries, weights] = await Promise.all([store.list(), store.listWeights()]);
     if (isShared) {
       banner('');
       // Someone new joined and logged something: fetch the caregiver list again.
@@ -488,11 +494,15 @@ async function refresh() {
   }
 }
 
-const sortEntries = () => entries.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+const sortEntries = () => {
+  entries.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  weights.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+};
 
 async function addEntry(entry) {
   const row = await store.add({ created_by: myName(), ...entry });
   entries = [row, ...entries.filter(e => e.id !== row.id)];
+  if (isWeight(row)) weights = [row, ...weights.filter(e => e.id !== row.id)];
   sortEntries();
   render();
   return row;
@@ -501,6 +511,7 @@ async function addEntry(entry) {
 async function patchEntry(id, patch) {
   await store.update(id, patch);
   entries = entries.map(e => (e.id === id ? { ...e, ...patch } : e));
+  weights = weights.map(e => (e.id === id ? { ...e, ...patch } : e));
   sortEntries();
   render();
 }
@@ -508,6 +519,7 @@ async function patchEntry(id, patch) {
 async function removeEntry(entry, label = 'Verwijderd') {
   await store.remove(entry.id);
   entries = entries.filter(e => e.id !== entry.id);
+  weights = weights.filter(e => e.id !== entry.id);
   render();
   toast(label, async () => {
     const { id, created_at, space_id, ...rest } = entry;
@@ -737,9 +749,10 @@ $('#session-dialog').addEventListener('close', async () => {
 // ---------- edit sheet (diapers, old single feeds) ----------
 let editing = null;
 function openEntry(id) {
-  const e = entries.find(x => x.id === id);
+  const e = entries.find(x => x.id === id) || weights.find(x => x.id === id);
   if (!e) return;
   if (isSession(e)) { openSession(id, isRunning(e) ? 'edit' : 'edit'); return; }
+  if (isWeight(e)) { openWeight(id); return; }
   editing = e;
   $('#edit-title').textContent = describe(e);
   setTime($('#edit-time'), e.occurred_at);
@@ -769,6 +782,219 @@ $('#edit-dialog').addEventListener('close', async () => {
     }
   } catch (err) { fail(err); }
 });
+
+// ---------- weight ----------
+// Weighings are entries of type 'weight' with the weight in whole grams (weight_g).
+const gramFmt = new Intl.NumberFormat('nl-NL');
+const kgFmt = new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+const shortDate = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' });
+const grams = g => `${gramFmt.format(g)} g`;
+const signedGrams = g => (g > 0 ? `+${grams(g)}` : g < 0 ? `−${grams(-g)}` : '±0 g');
+const pctText = (part, whole) => new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 1, signDisplay: 'always' }).format((part / whole) * 100);
+let weightShowAll = false;
+let weightPoints = [];     // chart points of the current render, for tap-to-read
+let weightEditing = null;
+
+// "3850", "3.850", "3850 g" -> 3850 g; "3,85", "3.85", "3,85 kg" -> 3850 g. null when it can't be a baby's weight.
+export function parseWeight(text) {
+  let t = String(text || '').trim().toLowerCase().replace(/\s+/g, '');
+  if (!t) return null;
+  const kg = t.endsWith('kg');
+  t = t.replace(/kg$|g$/, '');
+  if (!/^\d+([.,]\d+)?$/.test(t)) return null;
+  // "3.850" (Dutch thousands dot, three digits after it) means grams, "3.85" means kilos.
+  if (!kg && /^\d{1,2}\.\d{3}$/.test(t)) t = t.replace('.', '');
+  let n = Number(t.replace(',', '.'));
+  if (kg || n < 30) n *= 1000;
+  n = Math.round(n);
+  return n >= 300 && n <= 30000 ? n : null;
+}
+
+function previewWeight(showError = false) {
+  const raw = $('#weight-input').value;
+  const g = parseWeight(raw);
+  const el = $('#weight-preview');
+  el.classList.toggle('error', g == null && (showError === true || raw.trim().length > 0));
+  el.textContent = g != null ? `= ${grams(g)} (${kgFmt.format(g / 1000)} kg)`
+    : raw.trim() ? 'Dat lijkt geen gewicht. Typ bijvoorbeeld 3850 (gram) of 3,85 (kilo).'
+    : showError === true ? 'Vul het gewicht in.' : 'In gram of kilo, bijvoorbeeld 3850 of 3,85.';
+}
+
+// The first weighing on (or the day after) the birth date counts as the birth weight.
+function birthWeight() {
+  const b = birth();
+  const first = weights.at(-1);
+  if (!b?.date || !first) return null;
+  const [y, m, d] = b.date.split('-').map(Number);
+  const days = (startOfDayOf(first.occurred_at) - new Date(y, m - 1, d)) / DAY;
+  return Math.round(days) <= 1 && days >= 0 ? first : null;
+}
+const startOfDayOf = iso => { const d = new Date(iso); d.setHours(0, 0, 0, 0); return d; };
+const daysBetween = (a, b) => Math.round((startOfDayOf(b) - startOfDayOf(a)) / DAY);
+const daysText = n => (n === 0 ? 'dezelfde dag' : n === 1 ? '1 dag' : `${n} dagen`);
+
+function renderWeight() {
+  const last = weights[0];
+  const prev = weights[1];
+  const card = $('#weight-card');
+  card.classList.toggle('empty', !last);
+  if (!last) {
+    $('#weight-now').textContent = 'Nog niet gewogen';
+    $('#weight-when').textContent = 'Vul het gewicht in als jullie de baby gewogen hebben, bijvoorbeeld na het consultatiebureau.';
+    $('#weight-trend').innerHTML = '';
+  } else {
+    $('#weight-now').textContent = grams(last.weight_g);
+    const d = daysBetween(last.occurred_at, new Date());
+    $('#weight-when').textContent = `Gewogen ${d === 0 ? 'vandaag' : d === 1 ? 'gisteren' : `${d} dagen geleden`} · ${shortDate.format(new Date(last.occurred_at))}`;
+    const rows = [];
+    if (prev) {
+      const diff = last.weight_g - prev.weight_g;
+      const days = daysBetween(prev.occurred_at, last.occurred_at);
+      const perDay = days >= 1 ? ` · ${diff >= 0 ? '+' : '−'}${gramFmt.format(Math.round(Math.abs(diff) / days))} g per dag` : '';
+      rows.push(`<li><b>${signedGrams(diff)}</b> sinds vorige keer <span>(${daysText(days)})${perDay}</span></li>`);
+    }
+    const bw = birthWeight();
+    const base = bw || weights.at(-1);
+    if (weights.length > 1 && base.id !== prev?.id) {
+      const diff = last.weight_g - base.weight_g;
+      rows.push(`<li><b>${signedGrams(diff)}</b> ${bw ? 'sinds geboorte' : `sinds ${shortDate.format(new Date(base.occurred_at))}`} <span>(${pctText(diff, base.weight_g)}%)</span></li>`);
+    } else if (bw && prev?.id === bw.id) {
+      rows[0] = rows[0].replace('sinds vorige keer', 'sinds geboorte');
+    }
+    $('#weight-trend').innerHTML = rows.join('');
+  }
+  renderWeightChart();
+
+  // History
+  const shown = weightShowAll ? weights : weights.slice(0, 4);
+  $('#weight-list').innerHTML = shown.map((e, i) => {
+    const before = weights[weights.indexOf(e) + 1];
+    const who = nameFor(e);
+    const sub = [e.note, who ? `door ${who}` : ''].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="weight-row" data-id="${escapeHtml(e.id)}">
+      <span class="when">${escapeHtml(shortDate.format(new Date(e.occurred_at)))}<small>${fmtTime(e.occurred_at)}</small></span>
+      <span class="what"><b>${grams(e.weight_g)}</b>${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
+      <span class="gap">${before ? signedGrams(e.weight_g - before.weight_g) : ''}</span>
+    </button></li>`;
+  }).join('');
+  $('#weight-list').hidden = !weights.length;
+  $('#weight-more').hidden = weights.length <= 4;
+  $('#weight-more').textContent = weightShowAll ? 'Minder tonen' : `Alle ${weights.length} metingen tonen`;
+}
+
+// Small line chart: weight over time, one point per weighing. Tap or drag to read a point.
+function renderWeightChart() {
+  const wrap = $('#weight-chart');
+  const pts = [...weights].reverse();
+  wrap.hidden = pts.length < 2;
+  if (pts.length < 2) { weightPoints = []; return; }
+  const W = Math.max(240, Math.round(wrap.clientWidth || 320));
+  const H = 150;
+  const pad = { l: 40, r: 14, t: 26, b: 24 };
+  const t0 = new Date(pts[0].occurred_at).getTime();
+  const t1 = Math.max(t0 + DAY, new Date(pts.at(-1).occurred_at).getTime());
+  let lo = Math.min(...pts.map(p => p.weight_g));
+  let hi = Math.max(...pts.map(p => p.weight_g));
+  // Nice gridlines every 250/500/1000 g, with a little room above and below.
+  const step = hi - lo > 3000 ? 1000 : hi - lo > 1200 ? 500 : hi - lo > 400 ? 250 : 100;
+  lo = Math.floor((lo - step * 0.3) / step) * step;
+  hi = Math.ceil((hi + step * 0.3) / step) * step;
+  const x = t => pad.l + ((t - t0) / (t1 - t0)) * (W - pad.l - pad.r);
+  const y = g => pad.t + (1 - (g - lo) / (hi - lo)) * (H - pad.t - pad.b);
+  weightPoints = pts.map(p => ({ e: p, x: x(new Date(p.occurred_at).getTime()), y: y(p.weight_g) }));
+
+  let grid = '';
+  for (let g = lo; g <= hi; g += step) {
+    grid += `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(g)}" y2="${y(g)}"/>`;
+    grid += `<text class="axis" x="${pad.l - 6}" y="${y(g) + 4}" text-anchor="end">${kgFmt.format(g / 1000).replace(/0+$/, '').replace(/,$/, '')}</text>`;
+  }
+  const dates = `<text class="axis" x="${pad.l}" y="${H - 6}">${escapeHtml(shortDate.format(new Date(t0)))}</text>`
+    + `<text class="axis" x="${W - pad.r}" y="${H - 6}" text-anchor="end">${escapeHtml(shortDate.format(new Date(pts.at(-1).occurred_at)))}</text>`
+    + `<text class="axis unit" x="${pad.l - 6}" y="11" text-anchor="end">kg</text>`;
+  const line = `<polyline class="line" points="${weightPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}"/>`;
+  const dots = weightPoints.map((p, i) => `<circle class="pt${i === weightPoints.length - 1 ? ' last' : ''}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4"/>`).join('');
+  const html = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Gewicht in de tijd, ${pts.length} metingen">
+    ${grid}${dates}${line}${dots}<g id="weight-pick"></g></svg><p class="weight-tip" id="weight-tip"></p>`;
+  if (wrap.dataset.html !== html) {
+    wrap.dataset.html = html;
+    wrap.innerHTML = html;
+    showWeightPoint(weightPoints.length - 1);
+  }
+}
+
+function showWeightPoint(i) {
+  const p = weightPoints[i];
+  if (!p) return;
+  const tip = $('#weight-tip');
+  const pick = $('#weight-pick');
+  if (pick) pick.innerHTML = `<line class="cross" x1="${p.x}" x2="${p.x}" y1="18" y2="${150 - 24}"/><circle class="pt on" cx="${p.x}" cy="${p.y}" r="5.5"/>`;
+  if (tip) tip.textContent = `${grams(p.e.weight_g)} op ${dayFmt.format(new Date(p.e.occurred_at))}`;
+}
+
+function pickWeightPoint(ev) {
+  if (!weightPoints.length || (ev.type === 'pointermove' && !ev.buttons && ev.pointerType !== 'mouse')) return;
+  const svg = $('#weight-chart svg');
+  if (!svg) return;
+  const r = svg.getBoundingClientRect();
+  const px = ((ev.clientX - r.left) / r.width) * svg.viewBox.baseVal.width;
+  let best = 0;
+  weightPoints.forEach((p, i) => { if (Math.abs(p.x - px) < Math.abs(weightPoints[best].x - px)) best = i; });
+  showWeightPoint(best);
+}
+
+function openWeight(id) {
+  const e = id ? weights.find(x => x.id === id) || entries.find(x => x.id === id) : null;
+  if (id && !e) return;
+  weightEditing = e;
+  $('#weight-title').textContent = e ? 'Weging aanpassen' : 'Gewicht invoeren';
+  $('#weight-input').value = e ? String(e.weight_g) : '';
+  setTime($('#weight-time'), e ? e.occurred_at : new Date().toISOString());
+  $('#weight-time').max = toLocalInput(new Date(Date.now() + 5 * MIN).toISOString());
+  $('#weight-note').value = e?.note ?? '';
+  $('#weight-delete').hidden = !e;
+  previewWeight();
+  showSheet($('#weight-dialog'));
+}
+
+$('#weight-dialog').addEventListener('close', async () => {
+  const dialog = $('#weight-dialog');
+  const action = dialog.returnValue;
+  const entry = weightEditing;
+  weightEditing = null;
+  dialog.returnValue = '';
+  if (!action || action === 'cancel') return;
+  try {
+    if (action === 'delete' && entry) {
+      await removeEntry(entry, 'Weging verwijderd');
+      return;
+    }
+    const g = parseWeight($('#weight-input').value);
+    if (g == null) return;
+    const fields = {
+      weight_g: g,
+      occurred_at: readTime($('#weight-time'), entry?.occurred_at),
+      note: $('#weight-note').value.trim() || null,
+    };
+    if (entry) {
+      await patchEntry(entry.id, fields);
+      toast('Opgeslagen');
+    } else {
+      const row = await addEntry({ type: 'weight', kind: 'weight', ...fields });
+      toast(`Opgeslagen: ${grams(g)}`, async () => {
+        await store.remove(row.id);
+        entries = entries.filter(e => e.id !== row.id);
+        weights = weights.filter(e => e.id !== row.id);
+        render();
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    toast(/weight_g|check constraint|violates|schema cache/i.test(err.message)
+      ? 'Niet opgeslagen: de database moet nog bijgewerkt worden voor gewicht.'
+      : `Niet opgeslagen: ${err.message}`);
+  }
+});
+addEventListener('resize', () => { if (store) renderWeightChart(); });
 
 // ---------- settings sheet ----------
 function openSettings(firstRun = false) {
@@ -1133,6 +1359,23 @@ $('#timeline').addEventListener('click', ev => {
   const btn = ev.target.closest('.entry');
   if (btn) openEntry(btn.dataset.id);
 });
+$('#add-weight').addEventListener('click', () => openWeight(null));
+$('#weight-list').addEventListener('click', ev => {
+  const btn = ev.target.closest('[data-id]');
+  if (btn) openWeight(btn.dataset.id);
+});
+$('#weight-more').addEventListener('click', () => { weightShowAll = !weightShowAll; renderWeight(); });
+$('#weight-input').addEventListener('input', previewWeight);
+$('#weight-form').addEventListener('submit', ev => {
+  // Don't close the sheet on Opslaan while the weight can't be read.
+  if (ev.submitter?.value === 'save' && parseWeight($('#weight-input').value) == null) {
+    ev.preventDefault();
+    previewWeight(true);
+  }
+});
+for (const type of ['pointerdown', 'pointermove']) {
+  $('#weight-chart').addEventListener(type, ev => pickWeightPoint(ev));
+}
 $('#day-prev').addEventListener('click', () => { dayOffset -= 1; renderDay(); });
 $('#day-next').addEventListener('click', () => { dayOffset = Math.min(0, dayOffset + 1); renderDay(); });
 
