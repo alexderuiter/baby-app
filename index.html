@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Baby Log – samen voedingen en luiers van je baby bijhouden</title>
+  <title>Baby Log – samen voedingen, luiers en gewicht van je baby bijhouden</title>
   <meta name="description" content="Baby Log is een gratis, persoonlijk logboek voor ouders en verzorgers om samen voedingen en luiers van hun baby bij te houden. Geen wachtwoord, geen betaalgegevens.">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#131417" media="(prefers-color-scheme: dark)">
@@ -32,6 +32,8 @@
     <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
     <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
     <symbol id="i-pipette" viewBox="0 0 24 24"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></symbol>
+    <symbol id="i-weight" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.905 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.925-2.54L19.4 9.5A2 2 0 0 0 17.48 8Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
   </svg>
   <header class="topbar">
@@ -177,6 +179,24 @@
       <div class="vit-row" id="vit-today"></div>
     </section>
 
+    <section class="weight" aria-label="Gewicht">
+      <h2 class="section-title">Gewicht</h2>
+      <article class="weight-card" id="weight-card">
+        <div class="weight-head">
+          <span class="badge"><svg class="i" aria-hidden="true"><use href="#i-weight"/></svg></span>
+          <div class="weight-now">
+            <b id="weight-now">Nog niet gewogen</b>
+            <span id="weight-when"></span>
+          </div>
+        </div>
+        <ul class="weight-trend" id="weight-trend"></ul>
+        <div class="weight-chart" id="weight-chart" hidden></div>
+        <button type="button" class="secondary weight-add" id="add-weight"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Gewicht invoeren</button>
+      </article>
+      <ol class="weight-list" id="weight-list" aria-label="Alle metingen" hidden></ol>
+      <button type="button" class="link-btn subtle" id="weight-more" hidden></button>
+    </section>
+
     <section class="day" aria-label="Dagoverzicht">
       <div class="day-head">
         <button class="icon-btn small" id="day-prev" aria-label="Vorige dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
@@ -260,6 +280,29 @@
       </label>
       <div class="sheet-actions">
         <button value="delete" formnovalidate class="danger" id="edit-delete">Verwijderen</button>
+        <span class="spacer"></span>
+        <button value="cancel" formnovalidate class="secondary">Annuleren</button>
+        <button value="save" class="primary">Opslaan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Weighing: enter or edit -->
+  <dialog id="weight-dialog" class="sheet">
+    <form method="dialog" id="weight-form">
+      <h2 id="weight-title" tabindex="-1" autofocus>Gewicht invoeren</h2>
+      <label class="field">Gewicht
+        <input type="text" id="weight-input" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="bijv. 3850 of 3,85">
+        <small id="weight-preview" aria-live="polite"></small>
+      </label>
+      <label class="field">Gewogen op
+        <input type="datetime-local" id="weight-time" required>
+      </label>
+      <label class="field">Notitie
+        <input type="text" id="weight-note" maxlength="500" placeholder="Optioneel, bijv. consultatiebureau">
+      </label>
+      <div class="sheet-actions">
+        <button value="delete" formnovalidate class="danger" id="weight-delete">Verwijderen</button>
         <span class="spacer"></span>
         <button value="cancel" formnovalidate class="secondary">Annuleren</button>
         <button value="save" class="primary">Opslaan</button>

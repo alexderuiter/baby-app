@@ -48,13 +48,15 @@ create index if not exists invites_space_idx on public.invites (space_id);
 create table if not exists public.entries (
   id              uuid primary key default gen_random_uuid(),
   space_id        uuid not null references public.spaces (id) on delete cascade,
-  type            text not null check (type in ('feed', 'diaper', 'vitamin')),
+  type            text not null check (type in ('feed', 'diaper', 'vitamin', 'weight')),
   kind            text not null check (
                     -- 'session' = a feeding session (left/right/bottle are older single entries)
                     (type = 'feed'   and kind in ('session', 'left', 'right', 'bottle')) or
                     (type = 'diaper' and kind in ('wet', 'dirty', 'both')) or
                     -- daily vitamin drops, one entry per day given
-                    (type = 'vitamin' and kind in ('k', 'd'))
+                    (type = 'vitamin' and kind in ('k', 'd')) or
+                    -- each time the baby was weighed, weight in weight_g
+                    (type = 'weight'  and kind = 'weight')
                   ),
   amount_ml       integer check (amount_ml is null or (amount_ml > 0 and amount_ml < 1000)),
   note            text check (note is null or char_length(note) <= 500),
@@ -65,6 +67,8 @@ create table if not exists public.entries (
   timer_side       text    check (timer_side is null or timer_side in ('left', 'right')),
   timer_started_at timestamptz,
   tags             text[]  not null default '{}',
+  -- Weighings: whole grams.
+  weight_g         integer check (weight_g is null or weight_g between 300 and 30000),
   -- Who logged it: the account, plus their name at that moment (kept if they leave).
   created_by_user uuid default auth.uid() references auth.users (id) on delete set null,
   created_by      text check (created_by is null or char_length(created_by) <= 40),
@@ -169,7 +173,7 @@ revoke insert on public.invites from anon, authenticated;
 grant  insert (token, space_id) on public.invites to authenticated;
 revoke update on public.entries from anon, authenticated;
 grant  update (kind, amount_ml, note, occurred_at, ended_at, left_sec, right_sec,
-                timer_side, timer_started_at, tags) on public.entries to authenticated;
+                timer_side, timer_started_at, tags, weight_g) on public.entries to authenticated;
 
 do $$
 declare p record;
