@@ -179,6 +179,23 @@
       <div class="vit-row" id="vit-today"></div>
     </section>
 
+
+    <section class="day" aria-label="Dagoverzicht">
+      <div class="day-head">
+        <button class="icon-btn small" id="day-prev" aria-label="Vorige dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <h2 id="day-title">Vandaag</h2>
+        <button class="icon-btn small" id="day-next" aria-label="Volgende dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+      </div>
+      <div class="vit-day" id="vit-day-wrap" hidden>
+        <span class="row-label"><svg class="i" aria-hidden="true"><use href="#i-pipette"/></svg>Vitamines</span>
+        <div class="vit-row compact" id="vit-day"></div>
+      </div>
+      <div class="day-stats" id="day-stats"></div>
+      <div class="day-bar" id="day-bar" aria-hidden="true"></div>
+      <ol id="timeline" class="timeline"></ol>
+      <p id="timeline-empty" class="empty">Nog niets gelogd op deze dag.</p>
+    </section>
+
     <section class="weight" aria-label="Gewicht">
       <h2 class="section-title">Gewicht</h2>
       <article class="weight-card" id="weight-card">
@@ -195,22 +212,6 @@
       </article>
       <ol class="weight-list" id="weight-list" aria-label="Alle metingen" hidden></ol>
       <button type="button" class="link-btn subtle" id="weight-more" hidden></button>
-    </section>
-
-    <section class="day" aria-label="Dagoverzicht">
-      <div class="day-head">
-        <button class="icon-btn small" id="day-prev" aria-label="Vorige dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
-        <h2 id="day-title">Vandaag</h2>
-        <button class="icon-btn small" id="day-next" aria-label="Volgende dag"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
-      </div>
-      <div class="vit-day" id="vit-day-wrap" hidden>
-        <span class="row-label"><svg class="i" aria-hidden="true"><use href="#i-pipette"/></svg>Vitamines</span>
-        <div class="vit-row compact" id="vit-day"></div>
-      </div>
-      <div class="day-stats" id="day-stats"></div>
-      <div class="day-bar" id="day-bar" aria-hidden="true"></div>
-      <ol id="timeline" class="timeline"></ol>
-      <p id="timeline-empty" class="empty">Nog niets gelogd op deze dag.</p>
     </section>
   </main>
 

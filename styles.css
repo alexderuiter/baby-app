@@ -394,3 +394,7 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; ma
 #weight-more { margin-top: 2px; }
 #weight-preview.error { color: var(--danger); }
 .entry.weight .dot { background: var(--weight-soft); color: var(--weight); }
+/* weight sits below the day overview, at the bottom of the page */
+.day { padding-bottom: 8px; }
+.day .timeline { padding-bottom: 0; }
+.weight { padding-bottom: 40px; }
